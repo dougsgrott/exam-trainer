@@ -1,0 +1,50 @@
+# AWS Certified Solutions Architect - Associate SAA-C03.
+# ABRIDGED FIXTURE, and the deepest one: AWS is the only vendor surveyed that goes
+# to four levels -- Domain, Task Statement, a typed `Knowledge of:` / `Skills in:`
+# bucket, then the bullet. The bucket is not a special case in the parser; it is
+# just what AWS calls depth 3, declared in `levels:` below.
+certification: saa-c03
+name: AWS Certified Solutions Architect - Associate
+vendor: aws
+version: Version 1.1
+effective: Effective 2026-07-01
+regime: exact
+levels: Domain, Task Statement, Bucket, Bullet
+source: AWS-Certified-Solutions-Architect-Associate_Exam-Guide.pdf sha256=0da651ceb8e2e1803ea126b733c55e614c7aadbc430eecf9d9675b74e224512d kind=pdf retrieved=2026-09-26 note=abridged-fixture
+
+- [30%] Design Secure Architectures
+  - Design secure access to AWS resources
+    - Knowledge of:
+      - Access controls and management across multiple accounts
+      - AWS federated access and identity services
+    - Skills in:
+      - Applying IAM policies to roles, users, and groups
+      - Setting up cross-account access
+  - Design secure workloads and applications
+    - Knowledge of:
+      - Application configuration and credentials security
+    - Skills in:
+      - Implementing application layer security
+- [26%] Design Resilient Architectures
+  - Design scalable and loosely coupled architectures
+    - Knowledge of:
+      - API creation and management - for example, Amazon API Gateway, REST API
+    - Skills in:
+      - Designing event-driven, microservice, and/or multi-tier architectures
+  - Design highly available and/or fault-tolerant architectures
+    - Knowledge of:
+      - Basic networking concepts - for example, route tables
+    - Skills in:
+      - Selecting appropriate resilience patterns
+- [24%] Design High-Performing Architectures
+  - Determine high-performing and/or scalable storage solutions
+    - Knowledge of:
+      - Storage types with associated characteristics
+    - Skills in:
+      - Determining storage services that can scale to accommodate demand
+- [20%] Design Cost-Optimized Architectures
+  - Design cost-optimized storage solutions
+    - Knowledge of:
+      - Access options - for example, an S3 bucket with Requester Pays object storage
+    - Skills in:
+      - Using cost-effective storage classes

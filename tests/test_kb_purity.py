@@ -27,6 +27,11 @@ def run_pipeline(run_tool, kb: Path) -> None:
     """Every documented command, in the documented order, into `kb`."""
     steps = [
         ("tools/parse_udemy.py", "--out", str(kb), "--check"),
+        # 017 put this in `make pipeline` and it belongs here for the same reason.
+        # It was invisible until 018 actually transcribed a blueprint: with
+        # `data/blueprints/` empty the step wrote no files, so leaving it out and
+        # putting it in produced identical trees.
+        ("tools/parse_blueprint.py", "--kb", str(kb), "--quiet"),
         ("tools/build_shards.py", "--kb", str(kb), "--quiet"),
         ("tools/build_kb.py", "--kb", str(kb)),
         ("tools/verify_lossless.py", "--kb", str(kb)),

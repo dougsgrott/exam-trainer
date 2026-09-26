@@ -41,7 +41,9 @@ from sqlalchemy.orm import Session
 
 from examkb import __version__
 from examkb.compat import (
+    blueprint_files,
     discover_shards,
+    load_blueprints,
     load_questions,
     norm,
     normalize_reference,
@@ -65,6 +67,15 @@ INGESTED_TABLES: tuple[str, ...] = (
     "question_option",
     "reference",
     "question_reference",
+    # 017. Parents first: a node's `parent_id` points inside its own table, and the
+    # rows are generated in document order so a parent is always inserted first.
+    "blueprint",
+    "blueprint_source",
+    "blueprint_node",
+    # 018. Derived from the two above it, so it is written by ingest rather than
+    # recomputed per request: `ingest --rebuild` has to reproduce the join, and a
+    # join that lived in a query would be a second definition of it.
+    "blueprint_domain_map",
 )
 
 # `kb/` records carry a provider, not an origin: origin is the platform's word for
@@ -222,8 +233,36 @@ def fingerprint(shards: Iterable[dict]) -> str:
     return digest.hexdigest()
 
 
+def blueprint_rows(kb: Path) -> list[dict]:
+    """Every blueprint file with its sha256, in path order.
+
+    The same shape as `shard_rows`, so both go through one `fingerprint()`. They
+    have to: 006 hashed question shards only, and a blueprint edited afterwards
+    would have left the projection serving a stale outline while reporting itself
+    current -- which is the exact failure the fingerprint exists to prevent.
+    """
+    kb = Path(kb)
+    rows = []
+    for path in blueprint_files(kb):
+        raw = path.read_bytes()
+        rows.append(
+            {
+                "path": str(path.relative_to(kb)),
+                "provider": "blueprint",
+                "line_count": len(raw.splitlines()),
+                "sha256": hashlib.sha256(raw).hexdigest(),
+            }
+        )
+    return rows
+
+
+def corpus_rows(kb: Path) -> list[dict]:
+    """Everything the fingerprint covers: question shards, then blueprints."""
+    return [*shard_rows(kb), *blueprint_rows(kb)]
+
+
 def kb_fingerprint(kb: Path) -> str:
-    return fingerprint(shard_rows(kb))
+    return fingerprint(corpus_rows(kb))
 
 
 # ----------------------------------------------------------------------------- rows
@@ -291,7 +330,13 @@ def option_id(question_id: str, label: str) -> str:
     return f"{question_id}#{label}"
 
 
-def build_rows(questions: list[dict], shards: list[dict], run_id: str) -> dict[str, list[dict]]:
+def build_rows(
+    questions: list[dict],
+    shards: list[dict],
+    run_id: str,
+    *,
+    blueprints: list[dict] | None = None,
+) -> dict[str, list[dict]]:
     """The whole projection, as plain dicts, keyed by table name."""
     shard_for_provider: dict[str, str] = {}
     for shard in shards:
@@ -428,6 +473,25 @@ def build_rows(questions: list[dict], shards: list[dict], run_id: str) -> dict[s
         references[reference_id]["display_url"] = chosen
         references[reference_id]["host"] = _host(chosen)
 
+    blueprint_rows_out, source_rows, node_rows = blueprint_tables(blueprints or [], run_id)
+    # A blueprint may be the *only* thing a certification has -- phase 8's whole
+    # point is a certification that arrives as an outline and nothing else -- so it
+    # contributes a `certification` row when the corpus has none. Questions win
+    # where both exist: the corpus owns its own names and its own count.
+    for row in blueprint_rows_out:
+        name = row.pop("_certification_name", None)
+        certifications.setdefault(
+            row["certification_id"],
+            {
+                "id": row["certification_id"],
+                "name": name or row["certification_id"],
+                "vendor": row["vendor"],
+                "level": None,
+                "question_count": 0,
+                "ingest_run_id": run_id,
+            },
+        )
+
     return {
         "shard": [{**shard, "id": shard["path"], "ingest_run_id": run_id} for shard in shards],
         "certification": sorted(certifications.values(), key=lambda row: row["id"]),
@@ -437,7 +501,124 @@ def build_rows(questions: list[dict], shards: list[dict], run_id: str) -> dict[s
         "question_option": option_rows,
         "reference": sorted(references.values(), key=lambda row: row["id"]),
         "question_reference": citation_rows,
+        "blueprint": blueprint_rows_out,
+        "blueprint_source": source_rows,
+        "blueprint_node": node_rows,
+        "blueprint_domain_map": domain_map_rows(
+            sorted(domains.values(), key=lambda row: row["id"]),
+            blueprint_rows_out,
+            node_rows,
+        ),
     }
+
+
+def domain_map_rows(
+    domain_rows: list[dict], blueprint_rows: list[dict], node_rows: list[dict]
+) -> list[dict]:
+    """Corpus domain -> top-level blueprint node, by exact string equality.
+
+    `=` and nothing else. The vendor's own punctuation is inconsistent across its
+    two certifications -- `Governance, Risk, and Responsible Use` against
+    `Governance, Safety & Risk Management` -- and every scheme for papering over
+    that also quietly joins two domains that genuinely differ. So the label is
+    compared byte for byte, and a domain that finds no node simply does not appear
+    here. 018's test is what notices; `join_method` is constrained to `exact` in
+    the schema so no later change can sneak a fallback in.
+
+    Scoped by certification, because two vendors may well both call a domain
+    `Integration`.
+    """
+    certification_of = {row["id"]: row["certification_id"] for row in blueprint_rows}
+    by_label: dict[tuple[str, str], str] = {}
+    for node in node_rows:
+        if node["depth"] != 1:
+            continue
+        key = (certification_of[node["blueprint_id"]], node["label"])
+        # First blueprint wins if a certification somehow has two current ones;
+        # `is_current` is the lever for that and nothing needs it yet (017).
+        by_label.setdefault(key, node["id"])
+
+    rows = []
+    for domain in domain_rows:
+        node_id = by_label.get((domain["certification_id"], domain["label"]))
+        if node_id is not None:
+            rows.append(
+                {"domain_id": domain["id"], "node_id": node_id, "join_method": "exact"}
+            )
+    return rows
+
+
+def blueprint_tables(
+    blueprints: list[dict], run_id: str
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """One parsed blueprint file -> its three tables.
+
+    Keys are content-derived like every other PROJECTION key (005): a blueprint's
+    is `vendor/certification/version`, a node's is `<blueprint>#<path>`, a source's
+    is `<blueprint>#<its own path>`. So `ingest --rebuild` reproduces every one of
+    them, and 018's domain map can point at a node id that still means the same
+    node next year.
+
+    Nothing here judges the weights. `weights_sum` and `weights_sum_to_100` are
+    copied through from the parser, which recorded the arithmetic without deciding
+    whether 80/105 is allowed -- it is.
+    """
+    blueprint_rows: list[dict] = []
+    source_rows: list[dict] = []
+    node_rows: list[dict] = []
+
+    for blueprint in blueprints:
+        blueprint_id = blueprint["id"]
+        blueprint_rows.append(
+            {
+                "id": blueprint_id,
+                "certification_id": blueprint["certification"],
+                "vendor": blueprint["vendor"],
+                "version_label": blueprint.get("version_label"),
+                "effective_from": blueprint.get("effective_from"),
+                "weight_regime": blueprint["weight_regime"],
+                "weights_sum": blueprint.get("weights_sum"),
+                "weights_sum_to_100": blueprint.get("weights_sum_to_100"),
+                "max_depth": blueprint["max_depth"],
+                "is_current": True,
+                "ingest_run_id": run_id,
+                "_certification_name": blueprint.get("name"),
+            }
+        )
+        for source in blueprint.get("sources") or []:
+            source_rows.append(
+                {
+                    "id": f"{blueprint_id}#{source['path']}",
+                    "blueprint_id": blueprint_id,
+                    "path": source["path"],
+                    "kind": source.get("kind"),
+                    "sha256": source["sha256"],
+                    "retrieved_on": source.get("retrieved_on"),
+                    "note": source.get("note"),
+                }
+            )
+        for node in blueprint.get("nodes") or []:
+            path = node["path"]
+            parent = path.rsplit(".", 1)[0] if "." in path else None
+            node_rows.append(
+                {
+                    "id": f"{blueprint_id}#{path}",
+                    "blueprint_id": blueprint_id,
+                    "parent_id": f"{blueprint_id}#{parent}" if parent else None,
+                    "path": path,
+                    "depth": node["depth"],
+                    "ordinal": node["ordinal"],
+                    "kind": node.get("kind"),
+                    # Byte-identical. The vendor's punctuation is what 018 joins on,
+                    # so nothing here may tidy it.
+                    "label": node["label"],
+                    "weight_pct": node.get("weight_pct"),
+                    "weight_min": node.get("weight_min"),
+                    "weight_max": node.get("weight_max"),
+                }
+            )
+
+    return blueprint_rows, source_rows, node_rows
 
 
 def _host(url: str) -> str | None:
@@ -588,10 +769,11 @@ def ingest(
     started = time.monotonic()
     shards = shard_rows(kb)
     questions = load_questions(kb)
-    run_id = fingerprint(shards)
+    blueprints = load_blueprints(kb)
+    run_id = fingerprint([*shards, *blueprint_rows(kb)])
     mode = "rebuild" if rebuild else "incremental"  # the schema's vocabulary (005)
 
-    rows = build_rows(questions, shards, run_id)
+    rows = build_rows(questions, shards, run_id, blueprints=blueprints)
 
     run = session.get(corpus.IngestRun, run_id)
     if run is None:
@@ -611,6 +793,14 @@ def ingest(
             )
         )
         session.flush()
+
+    # Foreign keys are checked at COMMIT rather than per row, for the duration of
+    # this transaction only. 006's two-phase apply already orders deletes
+    # children-first *across* tables, but `blueprint_node.parent_id` points inside
+    # its own table (017): a parent and its children are deleted in one pass and no
+    # row order fixes that in general. Deferring is SQLite's own answer, and it is
+    # not a loosening -- every constraint is still enforced, just once, at the end.
+    session.execute(sa.text("PRAGMA defer_foreign_keys = ON"))
 
     if rebuild:
         empty_projection(session)

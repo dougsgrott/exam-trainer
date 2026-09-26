@@ -1,0 +1,22 @@
+# dbt Analytics Engineering Certification.
+# ABRIDGED FIXTURE. dbt publishes an outline and no percentages at all, which is
+# the `absent` regime: the weights are not missing from the transcription, they are
+# missing from the document.
+certification: dbt-analytics-engineering
+name: dbt Analytics Engineering Certification
+vendor: dbt
+version: Version 1.0
+regime: absent
+levels: Topic, Skill
+source: dbt-certification-study-guide.pdf sha256=4e69181b47e1763322b6d849e5f4fe2d6f087095fd2e4d9465d09156df8d9ae9 kind=pdf retrieved=2026-09-26 note=abridged-fixture
+
+- Developing dbt models
+  - Understanding source freshness
+  - Debugging a failing model
+- Understanding dbt models governance
+  - Adding contracts to models
+  - Understanding model versions
+- Debugging data modeling errors
+  - Understanding logged error messages
+- Managing data pipelines
+  - Understanding job run history

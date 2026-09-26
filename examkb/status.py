@@ -75,19 +75,39 @@ def _stat_key(path: Path) -> tuple[int, int] | None:
     return (info.st_size, info.st_mtime_ns)
 
 
-_CORPUS_CACHE: dict[Path, tuple[tuple[int, int] | None, str | None]] = {}
+_CORPUS_CACHE: dict[Path, tuple[tuple | None, str | None]] = {}
+
+
+def _cache_key(kb: Path) -> tuple:
+    """What has to change before the fingerprint is worth recomputing.
+
+    The shard index, and every blueprint file. 018 is what made the second half
+    necessary: before it there were no blueprints, so hashing shards alone gave
+    the same answer as hashing the whole corpus and the omission was invisible.
+    Blueprint files are a handful of small JSON documents and this runs on a page
+    load, so stat-ing each one is cheaper than re-reading them.
+    """
+    return (
+        _stat_key(kb / "shards.json"),
+        tuple((str(path), _stat_key(path)) for path in ingest.blueprint_files(kb)),
+    )
 
 
 def corpus_fingerprint(kb: Path) -> str | None:
-    """`kb_fingerprint(kb)`, recomputed only when the shard index changes on disk.
+    """`kb_fingerprint(kb)`, recomputed only when `kb/` changes on disk.
 
     None when there is no corpus at all -- an empty directory hashes to something,
     and "the projection does not match the empty corpus you do not have" is not a
     thing to put in front of a person.
+
+    **This must hash exactly what ingest stores, and it does it by calling the same
+    function.** It used to hash `shard_rows` while ingest stored `corpus_rows`;
+    the two agreed only while `kb/blueprints/` was empty, and the day a blueprint
+    landed every page in the app would have said "older than kb/" forever, with an
+    `examkb ingest` that wrote nothing to contradict it.
     """
     kb = Path(kb)
-    index = kb / "shards.json"
-    key = _stat_key(index)
+    key = _cache_key(kb)
     cached = _CORPUS_CACHE.get(kb)
     if cached is not None and cached[0] == key:
         return cached[1]
@@ -95,8 +115,10 @@ def corpus_fingerprint(kb: Path) -> str | None:
     if not kb.is_dir():
         value = None
     else:
-        shards = ingest.shard_rows(kb)
-        value = ingest.fingerprint(shards) if shards else None
+        # `corpus_rows`, and not its two halves re-composed here: that composition
+        # existing in two places is the bug this replaced.
+        rows = ingest.corpus_rows(kb)
+        value = ingest.fingerprint(rows) if rows else None
 
     _CORPUS_CACHE[kb] = (key, value)
     return value

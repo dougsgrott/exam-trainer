@@ -1,0 +1,23 @@
+# SnowPro Core COF-C03.
+# ABRIDGED FIXTURE. The COF-C03 study guide is behind a Marketo form, so the
+# weights are `unpublished` rather than `absent`: the difference is whether the
+# vendor declined to publish them or has not been asked. Recording which one it is
+# keeps a future re-fetch honest.
+certification: cof-c03
+name: SnowPro Core Certification
+vendor: snowflake
+version: COF-C03
+regime: unpublished
+levels: Domain, Objective
+source: cof-c03-study-guide.pdf sha256=f78ce1a6c49c4c200631049816afa3af9f24cc3abc6daf9d1eeb2c22c625f709 kind=pdf note=behind a Marketo form; outline transcribed from the public exam page
+
+- Snowflake AI Data Cloud Features and Architecture
+  - Outline key features of the Snowflake AI Data Cloud
+  - Outline Snowflake's architecture
+- Account Access and Security
+  - Outline compute principles
+  - Define the entities and roles used in Snowflake
+- Performance Concepts
+  - Explain the use of the query profile
+- Data Loading and Unloading
+  - Define concepts and best practices for data loading

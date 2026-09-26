@@ -1,0 +1,31 @@
+# AZ-104, Microsoft Azure Administrator.
+# ABRIDGED FIXTURE, not a transcription of record: the domains and their weight
+# ranges are the published ones, the task lists under them are cut short. It
+# exists to exercise the `range` regime, whose lows sum to 80 and highs to 105 --
+# which is a correct transcription of a correct document and must not be rejected.
+certification: az-104
+name: Microsoft Azure Administrator
+vendor: microsoft
+version: Version 1.0
+effective: Effective 2026-07-01
+regime: range
+levels: Domain, Task
+source: az-104-study-guide.html sha256=4eb08d8464899af13df638be1ea998423fbc4de0f8e4b2ca6015e1cd5bab57ca kind=html retrieved=2026-09-26 note=abridged-fixture
+
+- [20-25%] Manage Azure identities and governance
+  - Manage Microsoft Entra users and groups
+  - Manage access to Azure resources
+  - Manage Azure subscriptions and governance
+- [15-20%] Implement and manage storage
+  - Configure access to storage
+  - Configure and manage storage accounts
+- [20-25%] Deploy and manage Azure compute resources
+  - Automate deployment of resources by using templates
+  - Create and configure virtual machines
+  - Provision and manage containers in the Azure portal
+- [15-20%] Implement and manage virtual networking
+  - Configure and manage virtual networks in Azure
+  - Configure secure access to virtual networks
+- [10-15%] Monitor and maintain Azure resources
+  - Monitor resources in Azure
+  - Implement backup and recovery

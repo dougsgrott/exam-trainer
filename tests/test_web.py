@@ -302,11 +302,15 @@ def test_status_states_are_distinct_and_ordered(tmp_path: Path, tmp_kb: Path, tm
 
 
 def test_the_corpus_fingerprint_is_cached_against_the_shard_index(tmp_kb: Path, monkeypatch) -> None:
-    """A banner that re-hashed the corpus on every request is a banner somebody deletes."""
+    """A banner that re-hashed the corpus on every request is a banner somebody deletes.
+
+    Counts reads of `corpus_rows`, which is what 018 made this hash: shards *and*
+    blueprints, the same list ingest stores its fingerprint from.
+    """
     calls = []
-    real = status_module.ingest.shard_rows
+    real = status_module.ingest.corpus_rows
     monkeypatch.setattr(
-        status_module.ingest, "shard_rows", lambda kb: (calls.append(kb), real(kb))[1]
+        status_module.ingest, "corpus_rows", lambda kb: (calls.append(kb), real(kb))[1]
     )
 
     first = status_module.corpus_fingerprint(tmp_kb)
