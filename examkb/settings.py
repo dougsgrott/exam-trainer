@@ -22,6 +22,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _WINDOWS_MOUNT = Path("/mnt/c")
 
+# Ten snapshots of a database this size is a few tens of MB, which is nothing, and
+# ten is enough history to notice "the thing I want back was two migrations ago".
+DEFAULT_BACKUP_KEEP = 10
+
 
 def _default_backup_dir(repo_root: Path) -> Path:
     """Off-box under /mnt/c when WSL exposes it, otherwise inside the repo.
@@ -45,6 +49,8 @@ class Settings:
     tools_dir: Path
     database_url: str
     backup_dir: Path
+    backup_keep: int
+    """How many snapshots survive a prune. The newest is never one of the losses."""
 
     @property
     def database_path(self) -> Path | None:
@@ -61,6 +67,7 @@ def get_settings() -> Settings:
     repo_root = REPO_ROOT
     default_db = repo_root / "examkb.db"
     backup_dir = os.environ.get("EXAMKB_BACKUP_DIR")
+    keep = os.environ.get("EXAMKB_BACKUP_KEEP")
     return Settings(
         repo_root=repo_root,
         kb_dir=repo_root / "kb",
@@ -68,4 +75,5 @@ def get_settings() -> Settings:
         tools_dir=repo_root / "tools",
         database_url=os.environ.get("DATABASE_URL") or f"sqlite:///{default_db}",
         backup_dir=Path(backup_dir) if backup_dir else _default_backup_dir(repo_root),
+        backup_keep=max(1, int(keep)) if keep else DEFAULT_BACKUP_KEEP,
     )

@@ -36,11 +36,15 @@ TOOLS_DIR = ensure_tools_on_path()
 from _shared import (  # noqa: E402  -- import needs the path above
     KBNotFound,
     QUESTIONS_FILE,
+    SHARDS_FILE,
+    StaleShardIndex,
+    discover_shards,
     load_questions,
     md_to_html,
     norm,
     normalize_reference,
     questions_path,
+    read_shard_index,
     slugify,
     strip_markdown,
 )
@@ -48,13 +52,17 @@ from _shared import (  # noqa: E402  -- import needs the path above
 __all__ = [
     "KBNotFound",
     "QUESTIONS_FILE",
+    "SHARDS_FILE",
+    "StaleShardIndex",
     "TOOLS_DIR",
+    "discover_shards",
     "ensure_tools_on_path",
     "load_questions",
     "md_to_html",
     "norm",
     "normalize_reference",
     "questions_path",
+    "read_shard_index",
     "slugify",
     "strip_markdown",
 ]

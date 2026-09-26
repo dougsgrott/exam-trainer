@@ -73,9 +73,9 @@ def registered() -> list[Command]:
 # --------------------------------------------------------------------------- stubs
 #
 # Until its owning issue lands, a subcommand is `lenient`: it accepts arguments it
-# does not declare and reports that it is not implemented -- so `examkb db upgrade`
-# and `examkb ingest --verify` print the issue number rather than an argparse error
-# about arguments those issues will introduce.
+# does not declare and reports that it is not implemented, rather than failing on an
+# argument its issue will introduce. `db` left this section in 005 and `ingest` in
+# 006; both live in `examkb/commands/`, which is the path the two below follow.
 
 
 def _not_implemented(name: str, issue: str) -> Runner:
@@ -84,16 +84,6 @@ def _not_implemented(name: str, issue: str) -> Runner:
         return 1
 
     return run
-
-
-@subcommand("db", "Apply, roll back and inspect database migrations.", lenient=True)
-def _db(args: argparse.Namespace) -> int:
-    return _not_implemented("db", "005-schema-and-initial-migration.md")(args)
-
-
-@subcommand("ingest", "Load kb/ into the database projection.", lenient=True)
-def _ingest(args: argparse.Namespace) -> int:
-    return _not_implemented("ingest", "006-ingest.md")(args)
 
 
 @subcommand("serve", "Run the web app on 127.0.0.1.", lenient=True)
@@ -112,10 +102,14 @@ def _doctor(args: argparse.Namespace) -> int:
 def _load_subcommands() -> None:
     """Import the modules that register subcommands.
 
-    The four above are declared in this module because they are stubs. As each
-    owning issue lands it moves its subcommand into its own module, and that
-    module gets imported here.
+    The two above are declared in this module because they are stubs. As each
+    owning issue lands it moves its subcommand into its own module under
+    `examkb/commands/`, and that module gets imported here.
+
+    The import is inside the function, not at module scope: a subcommand module
+    imports `subcommand` from this one, and doing it at the top would be a cycle.
     """
+    from examkb.commands import backup, db, ingest  # noqa: F401  -- register them
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -166,4 +160,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Under `python -m examkb.cli` this file runs as `__main__`, and a subcommand
+    # module importing `examkb.cli` gets a *second* copy with its own registry --
+    # so the subcommands register somewhere this process would never look. Dispatch
+    # through the canonical module instead of the copy.
+    from examkb.cli import main as canonical_main
+
+    sys.exit(canonical_main())
