@@ -12,6 +12,7 @@ than inheriting a speculative API nobody wrote a caller for.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 import sqlalchemy as sa
@@ -117,3 +118,146 @@ def current_ingest_run(session: Session) -> corpus.IngestRun | None:
     if fingerprint is None:
         return None
     return session.get(corpus.IngestRun, fingerprint)
+
+
+# ------------------------------------------------------------------- question detail
+#
+# 010's detail page. Three statements -- the question with its exam, certification
+# and domain; its options; its references -- rather than an ORM object the template
+# can lazily walk into an N+1.
+
+
+@dataclass(frozen=True)
+class OptionRow:
+    id: str
+    label: str
+    position: int
+    text_md: str
+    is_correct: bool
+    explanation_md: str | None
+
+
+@dataclass(frozen=True)
+class ReferenceRow:
+    id: str
+    display_url: str
+    host: str | None
+    raw_url: str
+    position: int
+    question_count: int
+
+
+@dataclass(frozen=True)
+class QuestionDetail:
+    id: str
+    prompt_md: str
+    overall_explanation_md: str | None
+    type: str
+    select_count: int
+    correct_labels: list
+    question_number: int | None
+    origin: str
+    certification_id: str
+    certification_name: str | None
+    exam_id: str | None
+    exam_title: str | None
+    exam_mode: str | None
+    domain_label: str | None
+    mark: str | None = None
+    options: tuple[OptionRow, ...] = ()
+    references: tuple[ReferenceRow, ...] = ()
+
+    @property
+    def multi(self) -> bool:
+        return self.type == "multi_select"
+
+    @property
+    def mode(self) -> str:
+        return self.exam_mode or "unspecified"
+
+
+_DETAIL_SQL = """
+SELECT question.id, question.prompt_md, question.overall_explanation_md,
+       question.type, question.select_count, question.correct_labels,
+       question.question_number, question.origin,
+       question.certification_id, certification.name AS certification_name,
+       question.exam_id, exam.title AS exam_title, exam.mode AS exam_mode,
+       question.domain_label,
+       CASE WHEN current_mark.value IS NULL OR current_mark.value = 'cleared'
+            THEN NULL ELSE current_mark.value END AS mark
+  FROM question
+  LEFT JOIN exam ON exam.id = question.exam_id
+  LEFT JOIN certification ON certification.id = question.certification_id
+  LEFT JOIN current_mark ON current_mark.question_id = question.id
+ WHERE question.id = :id
+"""
+
+
+def question_detail(session: Session, question_id: str) -> QuestionDetail | None:
+    """One question, everything a page shows, or None when there is no such id."""
+    row = session.execute(sa.text(_DETAIL_SQL), {"id": question_id}).mappings().first()
+    if row is None:
+        return None
+
+    options = session.execute(
+        sa.select(corpus.QuestionOption)
+        .where(corpus.QuestionOption.question_id == question_id)
+        .order_by(corpus.QuestionOption.position)
+    ).scalars().all()
+
+    references = session.execute(
+        sa.text(
+            "SELECT reference.id, reference.display_url, reference.host, "
+            "       question_reference.raw_url, question_reference.position, "
+            "       reference.question_count "
+            "  FROM question_reference "
+            "  JOIN reference ON reference.id = question_reference.reference_id "
+            " WHERE question_reference.question_id = :id "
+            " ORDER BY question_reference.position, reference.id"
+        ),
+        {"id": question_id},
+    ).mappings().all()
+
+    correct = row["correct_labels"]
+    if isinstance(correct, str):  # JSON comes back as text through a raw statement
+        correct = json.loads(correct)
+
+    return QuestionDetail(
+        id=row["id"],
+        prompt_md=row["prompt_md"],
+        overall_explanation_md=row["overall_explanation_md"],
+        type=row["type"],
+        select_count=int(row["select_count"] or 1),
+        correct_labels=list(correct or []),
+        question_number=row["question_number"],
+        origin=row["origin"],
+        certification_id=row["certification_id"],
+        certification_name=row["certification_name"],
+        exam_id=row["exam_id"],
+        exam_title=row["exam_title"],
+        exam_mode=row["exam_mode"],
+        domain_label=row["domain_label"],
+        mark=row["mark"],
+        options=tuple(
+            OptionRow(
+                id=option.id,
+                label=option.label,
+                position=option.position,
+                text_md=option.text_md,
+                is_correct=bool(option.is_correct),
+                explanation_md=option.explanation_md,
+            )
+            for option in options
+        ),
+        references=tuple(
+            ReferenceRow(
+                id=reference["id"],
+                display_url=reference["display_url"],
+                host=reference["host"],
+                raw_url=reference["raw_url"],
+                position=int(reference["position"]),
+                question_count=int(reference["question_count"]),
+            )
+            for reference in references
+        ),
+    )

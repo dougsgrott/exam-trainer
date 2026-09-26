@@ -17,7 +17,8 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest==9.1.1"]
+# httpx is Starlette's TestClient transport -- test-only, never imported by the app.
+dev = ["pytest==9.1.1", "httpx==0.28.1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -26,7 +27,14 @@ testpaths = ["tests"]
 # so `pytest -m slow` runs exactly those and `pytest -m ""` runs everything.
 addopts = ["-m", "not slow", "--strict-markers"]
 markers = [
-    "slow: drives the real pipeline over the real data/; seconds, not milliseconds",
+    "slow: seconds, not milliseconds -- the real pipeline over data/, or a full corpus sweep",
+]
+filterwarnings = [
+    "error",
+    # Starlette 1.7 wants `httpx2` for its TestClient. `httpx` still works and is
+    # the package this project already depends on; moving is a deliberate upgrade,
+    # not something to do while the warning is merely noisy. Test-only either way.
+    "ignore:Using `httpx` with `starlette.testclient`",
 ]
 
 [project.scripts]

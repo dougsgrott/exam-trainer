@@ -17,10 +17,23 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 
 from examkb.db import database_path, new_engine
+from examkb.services.search import FTS_TABLES
 from examkb.settings import get_settings
 
 INI_NAME = "alembic.ini"
 SCRIPT_DIR_NAME = "alembic"
+
+
+def include_object(_object, name: str, type_: str, _reflected, _compare_to) -> bool:
+    """What autogenerate is allowed to see. Everything except the FTS5 index.
+
+    A virtual table and its five shadow tables are real rows in `sqlite_master`
+    with no counterpart in `Base.metadata`, so without this filter every
+    `alembic revision --autogenerate` writes a migration that drops search. It
+    lives here rather than in `alembic/env.py` so that the drift test can use the
+    same predicate the real thing uses instead of a copy of it that agrees today.
+    """
+    return not (type_ == "table" and name in FTS_TABLES)
 
 
 class MigrationsNotFound(FileNotFoundError):

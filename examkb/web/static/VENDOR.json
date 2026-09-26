@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "Provenance for every third-party byte served by this app. Nothing here is",
+    "fetched at runtime: the files sit in this directory and are served from it,",
+    "which is what makes the app work with the network switched off.",
+    "tests/test_web_assets.py re-hashes each file against the sha256 below, so a",
+    "vendored asset cannot be swapped, patched or upgraded without the change",
+    "showing up as a failing test and a diff in this file.",
+    "To upgrade: fetch the new version from BOTH urls, check the two agree",
+    "byte-for-byte, write the file, and update version + sha256 here."
+  ],
+  "assets": [
+    {
+      "file": "htmx.min.js",
+      "name": "htmx",
+      "version": "2.0.11",
+      "license": "0BSD",
+      "sha256": "d6fdc75f204e6bdefa99b69bf1e6d4ac69b8a364f77929f45c13476b4000f717",
+      "bytes": 52182,
+      "urls": [
+        "https://unpkg.com/htmx.org@2.0.11/dist/htmx.min.js",
+        "https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js"
+      ]
+    }
+  ]
+}

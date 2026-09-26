@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from examkb import db, migrations, models
 from examkb.db import new_engine, pragma
 from examkb.models import JOURNAL, PROJECTION, corpus, journal, views
+from examkb.services.search import FTS_TABLES
 
 NOW = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
 
@@ -107,7 +108,16 @@ def seed_attempt_item(session: Session, *, answered: bool = True, submitted: boo
 
 
 def test_upgrade_produces_the_whole_schema(tmp_db: sa.Engine) -> None:
-    assert len(objects(tmp_db, "table")) == 37  # 36 of ours plus alembic_version
+    """Amended by 009: the FTS5 index is six more rows in `sqlite_master`.
+
+    A virtual table and its five shadow tables are counted apart from ours,
+    because they are not ours -- FTS5 owns their shape, and asserting on it would
+    be asserting on SQLite's internals.
+    """
+    tables = objects(tmp_db, "table")
+    assert sorted(name for name in tables if name in FTS_TABLES) == sorted(FTS_TABLES)
+    assert len([name for name in tables if name not in FTS_TABLES]) == 37  # 36 + alembic_version
+
     assert set(objects(tmp_db, "view")) == set(views.VIEW_NAMES)
     assert set(objects(tmp_db, "trigger")) == set(views.TRIGGER_NAMES)
     assert migrations.current_revision(str(tmp_db.url)) == migrations.head_revision()
@@ -219,10 +229,27 @@ def test_downgrade_to_base_then_upgrade_is_byte_identical(tmp_path) -> None:
 
 
 def test_models_match_the_migration(tmp_db: sa.Engine) -> None:
-    """The drift test. Autogenerate has nothing to say about a migrated database."""
+    """The drift test. Autogenerate has nothing to say about a migrated database.
+
+    Through the same `include_object` the real `alembic/env.py` uses, so this
+    asserts what `alembic revision --autogenerate` would actually produce. Without
+    it the answer is six `remove_table` ops -- a migration that drops search.
+    """
+    with tmp_db.connect() as connection:
+        context = MigrationContext.configure(
+            connection, opts={"compare_type": True, "include_object": migrations.include_object}
+        )
+        assert compare_metadata(context, models.metadata) == []
+
+
+def test_autogenerate_would_drop_search_without_the_filter(tmp_db: sa.Engine) -> None:
+    """The filter is load-bearing; prove it by taking it away."""
     with tmp_db.connect() as connection:
         context = MigrationContext.configure(connection, opts={"compare_type": True})
-        assert compare_metadata(context, models.metadata) == []
+        dropped = {
+            op[1].name for op in compare_metadata(context, models.metadata) if op[0] == "remove_table"
+        }
+    assert dropped == set(FTS_TABLES)
 
 
 # ------------------------------------------------------------ the PROJECTION/JOURNAL split

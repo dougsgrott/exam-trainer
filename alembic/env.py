@@ -8,6 +8,12 @@ connection (that is `examkb/db.py`, so a migration runs with
 `render_as_batch` is on because SQLite cannot ALTER a column in place: any later
 migration that changes one needs Alembic to rebuild the table, and finding that
 out in the migration that needs it is finding out too late.
+
+`include_object` (from `examkb/migrations.py`) hides the FTS5 index from
+autogenerate. A virtual table and its
+five shadow tables are real rows in `sqlite_master` but have no place in
+`Base.metadata`, so without this every `--autogenerate` run would helpfully write
+a migration that drops search.
 """
 
 from __future__ import annotations
@@ -18,6 +24,7 @@ from alembic import context
 
 from examkb import models
 from examkb.db import new_engine
+from examkb.migrations import include_object
 from examkb.settings import get_settings
 
 config = context.config
@@ -40,6 +47,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         render_as_batch=True,
         compare_type=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -65,6 +73,7 @@ def _run(connection) -> None:
         target_metadata=target_metadata,
         render_as_batch=True,
         compare_type=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()

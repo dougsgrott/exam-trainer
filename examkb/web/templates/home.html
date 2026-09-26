@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}examkb{% endblock %}
+
+{% block content %}
+<h1>The corpus</h1>
+{% if status.counts %}
+<p class="lede">What the projection currently holds. These are the numbers
+  <code>ingest --verify</code> checked; if one of them is wrong here, it is wrong
+  everywhere.</p>
+
+<div class="cards">
+  <div class="card"><span class="n">{{ status.counts.questions }}</span><span class="label">questions</span></div>
+  <div class="card"><span class="n">{{ status.counts.options }}</span><span class="label">options</span></div>
+  <div class="card"><span class="n">{{ status.counts.exams }}</span><span class="label">exams</span></div>
+  <div class="card"><span class="n">{{ status.counts.domains }}</span><span class="label">domains</span></div>
+  <div class="card"><span class="n">{{ status.counts.references }}</span><span class="label">references</span></div>
+  <div class="card"><span class="n">{{ status.counts.citations }}</span><span class="label">citations</span></div>
+</div>
+
+<h2>Projection</h2>
+<dl class="facts">
+  <dt>certifications</dt><dd>{{ status.counts.certifications }}</dd>
+  <dt>built from</dt><dd class="mono">{{ status.short }}</dd>
+  <dt>state</dt><dd>{{ status.state }}</dd>
+</dl>
+{% else %}
+<p class="lede">There is nothing to show yet. The banner above says what to run.</p>
+{% endif %}
+
+<h2>Not here yet</h2>
+<p class="lede">The nav names the pages and the issue each one lands in. This
+  release is the skeleton: a bound socket, a layout, and the numbers above.</p>
+{% endblock %}

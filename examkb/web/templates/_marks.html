@@ -1,0 +1,22 @@
+{# The mark control group, and the only thing a toggle sends back.
+
+   It swaps itself -- `hx-target="this"`, `hx-swap="outerHTML"` -- so a click
+   replaces three buttons and nothing else. The list is not re-rendered, so the
+   scroll position cannot move, and the response is a few hundred bytes.
+
+   The plan's HTMX warning is about the exam runner (015): `outerHTML` on a
+   container whose checkboxes are still being clicked drops the second click on a
+   detached node. It does not apply here, because the swapped element *is* the
+   control and one click is the whole interaction. 015 still has to use
+   `hx-swap="none"` with `HX-Trigger`.
+#}
+<span class="marks" id="marks-{{ question_id | replace('/', '-') }}"
+      data-mark="{{ mark or '' }}" hx-target="this" hx-swap="outerHTML">
+  {% for value in mark_values %}
+  <button type="button"
+          class="mark{% if mark == value %} on{% endif %}"
+          hx-post="/marks/{{ question_id }}?value={{ value }}"
+          aria-pressed="{{ 'true' if mark == value else 'false' }}"
+          title="{{ 'Clear this mark' if mark == value else 'Mark as ' ~ value }}">{{ value }}</button>
+  {% endfor %}
+</span>

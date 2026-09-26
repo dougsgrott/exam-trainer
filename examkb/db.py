@@ -105,9 +105,34 @@ def get_engine() -> Engine:
     return new_engine()
 
 
+@lru_cache(maxsize=8)
+def engine_for(url: str) -> Engine:
+    """A cached engine for one URL, for read paths that are handed a database.
+
+    `get_engine()` is the process-wide one for the configured database and is what
+    the app runs on. This exists for the things that are *told* which database to
+    look at -- the projection status (008), the pages (010), and every test that
+    points them at a copy in `tmp_path` -- so that a page load does not build an
+    engine and a connection pool each time it renders.
+
+    `create_parent=False`: being asked about a database that does not exist is a
+    state to report, not a file to create.
+    """
+    return new_engine(url, create_parent=False)
+
+
 @lru_cache(maxsize=1)
 def get_sessionmaker() -> sessionmaker[Session]:
     return sessionmaker(bind=get_engine(), expire_on_commit=False, future=True)
+
+
+def session_for(url: str | None = None) -> Session:
+    """A session on `url`, or on the configured database when `url` is None.
+
+    The services open their own sessions (the web layer may not), and both of them
+    need the same two-line decision about which engine that is. One copy.
+    """
+    return Session(engine_for(url) if url else get_engine(), expire_on_commit=False)
 
 
 @contextmanager
