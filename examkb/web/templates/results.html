@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Results — attempt {{ page.attempt_id }} — examkb{% endblock %}
+
+{% block content %}
+<h1>Attempt {{ page.attempt_id }}</h1>
+<p class="crumbs">{{ page.grade.certification_id }} ·
+  {{ page.submitted_at.strftime('%Y-%m-%d %H:%M') }} UTC · {{ page.elapsed_label }}</p>
+
+<section class="score {{ 'pass' if page.grade.passed else 'fail' }}">
+  <div class="headline">
+    <span class="scaled">{{ page.grade.scaled_score }}</span>
+    <span class="verdict">{{ "pass" if page.grade.passed else "fail" }}</span>
+  </div>
+  <dl class="facts">
+    <dt>correct</dt>
+    <dd>{{ page.grade.correct_count }} of {{ page.grade.item_count }}
+      ({{ "%.0f"|format(page.grade.percent) }}%)</dd>
+    <dt>cut score</dt><dd>{{ page.grade.scale.cut_score }} on {{ page.grade.scale.scale_min }}–{{ page.grade.scale.scale_max }}</dd>
+    <dt>answered</dt>
+    <dd>{{ page.grade.answered_count }} of {{ page.grade.item_count }}
+      {% if page.blank_count %}({{ page.blank_count }} left blank){% endif %}</dd>
+    <dt>credit</dt>
+    <dd>{{ "%+.2f"|format(page.grade.credit_total) }}
+      <span class="note">chance-corrected; a guesser averages 0</span></dd>
+  </dl>
+  <p class="note model">
+    The scaled score is a linear map from {{ page.grade.scale.scale_min }} to
+    {{ page.grade.scale.scale_max }} over the proportion correct. The endpoints and the
+    {{ page.grade.scale.cut_score }} cut are published ({{ page.grade.scale.source }});
+    the line between them is this tool's, not the vendor's equating.
+  </p>
+</section>
+
+<p class="after">
+  <a class="button quiet" href="/browse?mark=flagged">Questions you flagged</a>
+  <a class="button quiet" href="/exam">Sit another</a>
+</p>
+
+<h2>By domain</h2>
+{% if page.domains %}
+<ul class="domains">
+  {% for row in page.domains %}
+  <li>
+    <span class="d">{{ row.label }}</span>
+    <span class="n">{{ row.share }}</span>
+    <span class="pct">{{ "%.0f"|format(row.percent) }}%</span>
+  </li>
+  {% endfor %}
+</ul>
+{# charts.py, unmodified, server-side, reached through the compat bridge. Inline
+   SVG using the palette's CSS variables, so it needs no network and no theme pass. #}
+{{ chart_hbar(page.chart_items, label="Score by domain, percent correct", value_format="{:.0f}%", gutter=280, width=760) }}
+{{ chart_table(["Domain", "Correct", "Asked", "Score"], page.chart_rows, caption="By domain, as a table") }}
+{% endif %}
+
+<h2>Every question, in the order you sat them</h2>
+<ol class="replay">
+  {% for item in page.items %}
+  <li class="replay-item {{ 'right' if item.is_correct else ('blank' if item.blank else 'wrong') }}"
+      id="q{{ item.number }}">
+    <p class="qmeta">
+      <span class="num">{{ item.number }}</span>
+      <span class="verdict">{{ item.outcome | replace("_", " ") }}</span>
+      {% if item.domain_label %}<span>{{ item.domain_label }}</span>{% endif %}
+      {% if item.multi %}<span>select {{ item.select_count }}</span>{% endif %}
+      <span class="credit">{{ "%+.2f"|format(item.credit) }}</span>
+      {% if item.disputed %}<span class="disputed">open dispute</span>{% endif %}
+      <a class="perma" href="/questions/{{ item.question_id }}">{{ item.question_id }}</a>
+    </p>
+
+    <div class="prompt">{{ item.prompt_md | md }}</div>
+
+    <ol class="options">
+      {% for option in item.options %}
+      <li class="option {{ option.state }}">
+        <p class="head">
+          <span class="letter">{{ option.label }}</span>
+          {% if option.correct %}<span class="badge good">correct</span>{% endif %}
+          {% if option.selected %}<span class="badge pick">you picked this</span>{% endif %}
+        </p>
+        <div class="text">{{ option.text_md | md }}</div>
+        {% if option.explanation_md %}
+        <div class="why">{{ option.explanation_md | md }}</div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+
+    {% if item.overall_explanation_md %}
+    {# 041 extends this panel; it already holds the key and every explanation. #}
+    <details class="overall" open>
+      <summary>Why</summary>
+      {{ item.overall_explanation_md | md }}
+    </details>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% endblock %}

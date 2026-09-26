@@ -433,6 +433,19 @@ _FROM_MATCH = (
 )
 
 
+def question_scope(
+    q: str = "", filters: SearchFilters | None = None
+) -> tuple[str, dict[str, object]]:
+    """The public form: `FROM ... WHERE ...` for a search string and some filters.
+
+    012's sampler draws from it. "The questions matching these filters" has to have
+    exactly one definition, or a pool and the `/browse` list that showed it will
+    eventually disagree about which questions exist -- and the person finds out
+    when their 60-item exam is 58.
+    """
+    return _scope(parse(q), filters or SearchFilters())
+
+
 def _scope(query: Query, filters: SearchFilters) -> tuple[str, dict[str, object]]:
     """`FROM ... WHERE ...` plus its bound values: the set under discussion."""
     fragments, values = filters.clauses()

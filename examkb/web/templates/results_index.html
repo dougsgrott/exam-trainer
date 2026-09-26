@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Results — examkb{% endblock %}
+
+{% block content %}
+<h1>Results</h1>
+{% if attempts %}
+<ul class="attempts">
+  {% for attempt_id, certification, submitted_at, passed in attempts %}
+  <li>
+    <a href="/results/{{ attempt_id }}">Attempt {{ attempt_id }}</a>
+    <span class="n">{{ certification }}</span>
+    <span class="n">{{ submitted_at.strftime('%Y-%m-%d %H:%M') }} UTC</span>
+    <span class="verdict {{ 'pass' if passed else 'fail' }}">{{ "pass" if passed else "fail" }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="lede">No submitted attempts yet. <a href="/exam">Sit one.</a></p>
+{% endif %}
+{% endblock %}

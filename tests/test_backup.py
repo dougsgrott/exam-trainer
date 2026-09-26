@@ -15,14 +15,12 @@ from __future__ import annotations
 import os
 import shutil
 import sqlite3
-import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
-from conftest import REPO_ROOT
 from sqlalchemy.orm import Session
 
 from examkb import backup as backup_module
@@ -86,16 +84,24 @@ def table_count(database: Path) -> int:
         connection.close()
 
 
-def cli(*arguments: str, database: Path, backups: Path) -> subprocess.CompletedProcess:
-    environment = {
-        **os.environ,
-        "DATABASE_URL": f"sqlite:///{database}",
-        "EXAMKB_BACKUP_DIR": str(backups),
-    }
-    return subprocess.run(
-        [sys.executable, "-m", "examkb.cli", *arguments],
-        cwd=REPO_ROOT, env=environment, capture_output=True, text=True,
-    )
+@pytest.fixture
+def cli(run_cli):
+    """`examkb ...` against a named database and backup directory, in this process.
+
+    Five of the tests below drive the CLI, and each one used to spawn an
+    interpreter -- 7.8 s of the default run to assert on exit codes and single
+    lines of output that `cli.main()` produces identically. `conftest.run_cli`
+    documents what a real process still proves that this does not, and
+    `test_harness.py` holds the two to each other.
+    """
+
+    def call(*arguments: str, database: Path, backups: Path):
+        return run_cli(
+            *arguments,
+            env={"DATABASE_URL": f"sqlite:///{database}", "EXAMKB_BACKUP_DIR": str(backups)},
+        )
+
+    return call
 
 
 # ------------------------------------------------------------------------ the snapshot
@@ -306,7 +312,7 @@ def test_restoring_clears_the_old_wal_beside_the_database(
 # --------------------------------------------------------------------------- the gate
 
 
-def test_the_first_upgrade_has_nothing_to_back_up_and_proceeds(tmp_path: Path) -> None:
+def test_the_first_upgrade_has_nothing_to_back_up_and_proceeds(tmp_path: Path, cli) -> None:
     database = tmp_path / "examkb.db"
     backups = tmp_path / "backups"
 
@@ -318,7 +324,7 @@ def test_the_first_upgrade_has_nothing_to_back_up_and_proceeds(tmp_path: Path) -
     assert database.exists()
 
 
-def test_a_second_upgrade_snapshots_the_database_first(tmp_path: Path) -> None:
+def test_a_second_upgrade_snapshots_the_database_first(tmp_path: Path, cli) -> None:
     database = tmp_path / "examkb.db"
     backups = tmp_path / "backups"
     cli("db", "upgrade", database=database, backups=backups)
@@ -333,7 +339,7 @@ def test_a_second_upgrade_snapshots_the_database_first(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root can write anywhere")
-def test_a_failed_gate_stops_the_migration_before_it_runs(tmp_path: Path) -> None:
+def test_a_failed_gate_stops_the_migration_before_it_runs(tmp_path: Path, cli) -> None:
     """The ordering claim: the database is still where it was afterwards."""
     database = tmp_path / "examkb.db"
     backups = tmp_path / "backups"
@@ -360,7 +366,7 @@ def test_a_failed_gate_stops_the_migration_before_it_runs(tmp_path: Path) -> Non
     assert table_count(database) == before
 
 
-def test_skipping_the_gate_is_possible_but_never_silent(tmp_path: Path) -> None:
+def test_skipping_the_gate_is_possible_but_never_silent(tmp_path: Path, cli) -> None:
     database = tmp_path / "examkb.db"
     backups = tmp_path / "backups"
 
@@ -371,7 +377,7 @@ def test_skipping_the_gate_is_possible_but_never_silent(tmp_path: Path) -> None:
     assert list_snapshots(backups) == []
 
 
-def test_the_backup_command_lists_what_it_has(tmp_path: Path) -> None:
+def test_the_backup_command_lists_what_it_has(tmp_path: Path, cli) -> None:
     database = tmp_path / "examkb.db"
     backups = tmp_path / "backups"
     cli("db", "upgrade", "--no-backup", database=database, backups=backups)

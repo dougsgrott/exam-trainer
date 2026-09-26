@@ -42,6 +42,7 @@ NAV: tuple[NavItem, ...] = (
     NavItem("Home", "home"),
     NavItem("Browse", "browse", issue="010"),
     NavItem("Exams", "exams", issue="015"),
+    NavItem("Results", "results_index", issue="016"),
     NavItem("Progress", "progress", issue="022"),
 )
 

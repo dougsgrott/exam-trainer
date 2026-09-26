@@ -9,12 +9,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, FastAPI
 
-from examkb.web.routes import browse, home, marks
+from examkb.web.routes import browse, exam, home, marks, results
 
 ROUTERS: tuple[APIRouter, ...] = (
     home.router,  # 008
     browse.router,  # 010
     marks.router,  # 011
+    exam.router,  # 015
+    results.router,  # 016
 )
 
 

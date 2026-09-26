@@ -37,6 +37,9 @@ VENDOR_MANIFEST = STATIC_DIR / "VENDOR.json"
 ERROR_TITLES = {
     404: "Not found",
     405: "Not allowed here",
+    # 015 raises this when a second exam is started while one is open. The detail
+    # names the attempt, so the title stays generic.
+    409: "That conflicts with something already happening",
     500: "Something broke",
 }
 

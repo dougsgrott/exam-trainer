@@ -463,32 +463,30 @@ def test_an_unknown_provider_refuses_rather_than_guessing() -> None:
 # -------------------------------------------------------------------------- the command
 
 
-def test_the_cli_reports_what_it_checked(tmp_path: Path) -> None:
-    """`examkb ingest --verify` over the real corpus, end to end, in its own process."""
-    database = tmp_path / "examkb.db"
-    environment = {**os.environ, "DATABASE_URL": f"sqlite:///{database}"}
+@pytest.fixture
+def examkb(run_cli):
+    def call(*arguments: str, database: Path):
+        return run_cli(*arguments, env={"DATABASE_URL": f"sqlite:///{database}"})
 
-    upgraded = subprocess.run(
-        [sys.executable, "-m", "examkb.cli", "db", "upgrade"],
-        cwd=REPO_ROOT, env=environment, capture_output=True, text=True,
-    )
+    return call
+
+
+def test_the_cli_reports_what_it_checked(tmp_path: Path, examkb) -> None:
+    """`examkb ingest --verify` over the real corpus, end to end."""
+    database = tmp_path / "examkb.db"
+
+    upgraded = examkb("db", "upgrade", database=database)
     assert upgraded.returncode == 0, upgraded.stderr
 
-    result = subprocess.run(
-        [sys.executable, "-m", "examkb.cli", "ingest", "--verify"],
-        cwd=REPO_ROOT, env=environment, capture_output=True, text=True,
-    )
+    result = examkb("ingest", "--verify", database=database)
+
     assert result.returncode == 0, result.stderr
     assert "549 questions from 1 shard" in result.stdout
     assert "checked 5490 text fields across 549 questions" in result.stdout
 
 
-def test_ingest_refuses_before_the_migrations_are_applied(tmp_path: Path) -> None:
-    environment = {**os.environ, "DATABASE_URL": f"sqlite:///{tmp_path / 'empty.db'}"}
-    result = subprocess.run(
-        [sys.executable, "-m", "examkb.cli", "ingest"],
-        cwd=REPO_ROOT, env=environment, capture_output=True, text=True,
-    )
+def test_ingest_refuses_before_the_migrations_are_applied(tmp_path: Path, examkb) -> None:
+    result = examkb("ingest", database=tmp_path / "empty.db")
 
     assert result.returncode == 1
     assert "db upgrade" in result.stderr

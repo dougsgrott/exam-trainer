@@ -33,7 +33,7 @@ EXTERNAL = re.compile(r"""(?:src|href|action|content)\s*=\s*["'](?:https?:)?//""
 def test_the_manifest_lists_every_third_party_file() -> None:
     """A file in static/ that nobody vendored is a file nobody can vouch for."""
     recorded = {asset["file"] for asset in vendored_assets()}
-    ours = {"app.css", "VENDOR.json"}
+    ours = {"app.css", "runner.js", "VENDOR.json"}
     on_disk = {path.name for path in STATIC_DIR.iterdir() if path.is_file()}
     unaccounted = on_disk - recorded - ours
     assert not unaccounted, f"static files with no provenance: {sorted(unaccounted)}"

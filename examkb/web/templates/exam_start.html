@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Exams — examkb{% endblock %}
+
+{% block content %}
+<h1>Mock exam</h1>
+
+{% if start.open_attempt_id %}
+<div class="banner" role="status">
+  <strong>You have an exam in progress.</strong>
+  <p>Attempt {{ start.open_attempt_id }} on {{ start.open_certification_id }} is still open.
+    One at a time — resume it, or walk away from it.</p>
+  <p>
+    <a class="button" href="/exam/{{ start.open_attempt_id }}">Resume</a>
+    <form method="post" action="/exam/{{ start.open_attempt_id }}/abandon" class="inline"
+          onsubmit="return confirm('Abandon this attempt? It will not be scored.')">
+      <button type="submit" class="quiet">Abandon</button>
+    </form>
+  </p>
+</div>
+{% else %}
+<p class="lede">Questions are drawn without replacement, options are shuffled, and every answer is
+  saved as you give it. The timer is the server's.</p>
+
+<form method="post" action="/exam/start" class="start">
+  <fieldset>
+    <legend>Certification</legend>
+    {% for id, name, available in start.certifications %}
+    <label class="choice">
+      <input type="radio" name="certification_id" value="{{ id }}"
+             {% if loop.first %}checked{% endif %}>
+      <span>{{ name }}</span>
+      <span class="n">{{ available }} questions</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  <label class="count">
+    Questions
+    <input type="number" name="count" min="1" max="200" placeholder="the exam's own length">
+  </label>
+  <button type="submit">Start</button>
+</form>
+{% endif %}
+{% endblock %}
