@@ -10,3 +10,11 @@ plans/
 kb/
 issues/
 data/
+
+# The journal database. Regenerable only in the sense that `db upgrade` recreates
+# the *schema*: attempts, marks, disputes and chat exist nowhere else, which is why
+# `examkb backup` (007) writes off-box rather than relying on git.
+examkb.db
+examkb.db-wal
+examkb.db-shm
+var/

@@ -15,7 +15,7 @@ STATS  := $(UV) run tools/kb_stats.py
 REPORT := $(UV) run tools/build_report.py
 
 .DEFAULT_GOAL := help
-.PHONY: help sync test test-slow test-all pipeline parse shards build verify stats report kb-hash db-upgrade ingest serve doctor clean-kb
+.PHONY: help sync test test-slow test-all pipeline parse shards build verify stats report kb-hash db-upgrade backup ingest serve doctor clean-kb
 
 help:  ## Show this help
 	@grep -hE '^[a-z][a-zA-Z0-9_-]*:.*?## ' $(MAKEFILE_LIST) \
@@ -68,9 +68,15 @@ clean-kb:  ## Delete kb/; it is a pure function of data/ and rebuilds
 	rm -rf $(KB)
 
 # --------------------------------------------------------------------- examkb
+#
+# `restore` is deliberately absent: it overwrites the journal, and a destructive
+# operation should not be one keystroke away from `make report`.
 
-db-upgrade:  ## Apply database migrations
+db-upgrade:  ## Apply database migrations (takes a verified backup first)
 	$(UV) run examkb db upgrade
+
+backup:  ## Snapshot the journal database off-box and verify the snapshot
+	$(UV) run examkb backup
 
 ingest:  ## kb/ -> SQLite projection
 	$(UV) run examkb ingest
