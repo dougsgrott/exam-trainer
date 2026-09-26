@@ -105,14 +105,17 @@ def test_no_template_runs_a_query(path: Path) -> None:
 # had to come here to do it, which is the test working.
 #
 # `examkb.compat` is the bridge to `tools/_shared.py`: pure text helpers, no
-# database. `examkb.services.browse` and `examkb.services.marks` are the session
-# seams -- they open the session and return frozen dataclasses, so `examkb.db`
-# stays forbidden under `web/`.
+# database. `browse`, `marks`, `runner` and `results` are the session seams -- each opens the
+# session and returns frozen dataclasses, so `examkb.db` stays forbidden under
+# `web/`. Note `examkb.services.attempts` is *not* here: the runner reaches it, the
+# web layer does not, because `attempts` hands back ORM objects.
 ALLOWED_MODULES = {
     "examkb.compat",
     "examkb.queries",
     "examkb.services.browse",
     "examkb.services.marks",
+    "examkb.services.results",
+    "examkb.services.runner",
     "examkb.status",
     "examkb.settings",
 }

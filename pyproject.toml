@@ -14,11 +14,16 @@ dependencies = [
     "fastapi==0.141.1",
     "jinja2==3.1.6",
     "uvicorn==0.54.0",
+    "python-multipart==0.0.20",
 ]
 
 [dependency-groups]
 # httpx is Starlette's TestClient transport -- test-only, never imported by the app.
-dev = ["pytest==9.1.1", "httpx==0.28.1"]
+dev = [
+    "pytest==9.1.1",
+    "httpx==0.28.1",
+    "playwright==1.56.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

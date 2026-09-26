@@ -20,14 +20,12 @@ state the user already has, and they will run it more than once.
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
-from conftest import REPO_ROOT, write_kb
+from conftest import write_kb
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 from starlette.testclient import TestClient
@@ -432,22 +430,22 @@ def test_the_toggle_does_not_pay_for_the_stale_banner(client: TestClient) -> Non
 # --------------------------------------------------------------------------- the CLI
 
 
-def examkb(*arguments: str, database: Path) -> subprocess.CompletedProcess:
-    import os
+@pytest.fixture
+def examkb(run_cli):
+    """`examkb ...` against a named database, in this process."""
 
-    return subprocess.run(
-        [sys.executable, "-m", "examkb.cli", *arguments],
-        cwd=REPO_ROOT,
-        env={**os.environ, "DATABASE_URL": f"sqlite:///{database}"},
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+    def call(*arguments: str, database: Path):
+        return run_cli(*arguments, env={"DATABASE_URL": f"sqlite:///{database}"})
+
+    return call
 
 
-def test_the_command_imports_and_is_idempotent(real_db: Engine, tmp_path: Path) -> None:
+def test_the_command_imports_and_is_idempotent(real_db: Engine, tmp_path: Path, examkb) -> None:
     database = Path(real_db.url.database)
-    real_db.dispose()  # checkpoint the WAL so the subprocess sees the projection
+    # Checkpoint the WAL and let go of the file: the command opens its own
+    # connection through `run_cli`, and the fixture's engine has no business
+    # still holding a write lock while it does.
+    real_db.dispose()
     blob = tmp_path / "kb-marks.json"
     blob.write_text(
         json.dumps(
@@ -471,7 +469,7 @@ def test_the_command_imports_and_is_idempotent(real_db: Engine, tmp_path: Path) 
     assert "0 imported, 1 already current" in second.stdout
 
 
-def test_a_dry_run_writes_nothing(real_db: Engine, tmp_path: Path) -> None:
+def test_a_dry_run_writes_nothing(real_db: Engine, tmp_path: Path, examkb) -> None:
     database = Path(real_db.url.database)
     real_db.dispose()
     blob = tmp_path / "kb-marks.json"
@@ -490,7 +488,7 @@ def test_a_dry_run_writes_nothing(real_db: Engine, tmp_path: Path) -> None:
         connection.close()
 
 
-def test_a_missing_file_is_a_sentence_not_a_traceback(real_db: Engine, tmp_path: Path) -> None:
+def test_a_missing_file_is_a_sentence_not_a_traceback(real_db: Engine, tmp_path: Path, examkb) -> None:
     database = Path(real_db.url.database)
     real_db.dispose()
 

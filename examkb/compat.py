@@ -33,6 +33,8 @@ def ensure_tools_on_path() -> str:
 
 TOOLS_DIR = ensure_tools_on_path()
 
+import charts  # noqa: E402  -- a module, not a name: 016 renders its SVG server-side
+
 from _shared import (  # noqa: E402  -- import needs the path above
     KBNotFound,
     QUESTIONS_FILE,
@@ -57,6 +59,7 @@ __all__ = [
     "SHARDS_FILE",
     "StaleShardIndex",
     "TOOLS_DIR",
+    "charts",
     "discover_shards",
     "ensure_tools_on_path",
     "load_questions",

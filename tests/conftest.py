@@ -10,6 +10,10 @@ Three rules the fixtures here exist to keep:
    (`pyproject.toml`); `tmp_kb` gives the rest a three-question corpus instead.
 3. **Nothing non-deterministic is left to chance.** `frozen_clock` and `seeded_rng`
    exist so a test never depends on the wall clock or on unseeded randomness.
+4. **A test spawns a process only when a process is the thing being tested.**
+   `run_cli` runs `examkb <command>` in here; `run_tool` spawns, because a
+   `tools/` script is a standalone PEP 723 program and running it any other way
+   would not be running it.
 
 `tmp_db` (005) follows the same rules: a real migrated database, in `tmp_path`,
 built by the real migration rather than by `create_all` -- a fixture schema that
@@ -19,11 +23,14 @@ day it is written.
 
 from __future__ import annotations
 
+import io
 import json
 import random
 import shutil
 import subprocess
 import sys
+from contextlib import redirect_stderr, redirect_stdout
+from dataclasses import dataclass
 from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
@@ -101,6 +108,77 @@ def repo_is_untouched(_repo_snapshot: dict):
         | {name for name in before.keys() & after.keys() if before[name] != after[name]}
     )
     assert not changed, f"test wrote inside the repo: {changed}"
+
+
+# ------------------------------------------------------------------------ the CLI
+#
+# `examkb <command>` in this process rather than in a new one. Spawning a real
+# interpreter costs ~250 ms of import time each, and by the end of phase 1 seven
+# tests were paying it -- about a fifth of the default run's wall clock -- to
+# assert on an exit code and a line of output that `cli.main()` produces just as
+# honestly.
+#
+# What a subprocess proves and this does not is that the console entry point and
+# `python -m examkb.cli` dispatch at all; 006's registry bug was only visible from
+# outside. `tests/test_web_bind.py::test_serve_is_registered_under_python_m` keeps
+# one real process for exactly that, and it covers the registry for every
+# subcommand, because the bug was in `cli.py`'s `__main__` guard and not in any of
+# them.
+
+
+@dataclass(frozen=True)
+class CliResult:
+    """Shaped like `subprocess.CompletedProcess`, so a converted test barely moves."""
+
+    returncode: int
+    stdout: str
+    stderr: str
+
+
+def reset_app_caches() -> None:
+    """Forget everything the app memoised from the environment.
+
+    `get_settings`, `get_engine`, `get_sessionmaker` and `engine_for` are all
+    `lru_cache`d on purpose -- a page load should not rebuild a connection pool --
+    which means a test that changes `DATABASE_URL` and does not clear them is a
+    test that quietly talks to the previous database. The engine is disposed
+    before it is forgotten so its pooled connections close now rather than
+    whenever the collector gets round to it.
+    """
+    from examkb import db, settings, status
+
+    if db.get_engine.cache_info().currsize:
+        db.get_engine().dispose()
+    db.get_engine.cache_clear()
+    db.get_sessionmaker.cache_clear()
+    db.engine_for.cache_clear()
+    settings.get_settings.cache_clear()
+    status.forget_corpus_fingerprint()
+
+
+@pytest.fixture
+def run_cli(monkeypatch: pytest.MonkeyPatch):
+    """Run `examkb ...` in this process and capture what it printed."""
+
+    def run(*arguments: str, env: dict | None = None, stdin: str | None = None) -> CliResult:
+        from examkb.cli import main
+
+        for key, value in (env or {}).items():
+            monkeypatch.setenv(key, str(value))
+        reset_app_caches()
+        if stdin is not None:
+            monkeypatch.setattr(sys, "stdin", io.StringIO(stdin))
+
+        out, err = io.StringIO(), io.StringIO()
+        try:
+            with redirect_stdout(out), redirect_stderr(err):
+                code = main([str(argument) for argument in arguments])
+        except SystemExit as stop:  # argparse exits rather than returning
+            code = stop.code if isinstance(stop.code, int) else 1
+        return CliResult(returncode=code, stdout=out.getvalue(), stderr=err.getvalue())
+
+    yield run
+    reset_app_caches()
 
 
 @pytest.fixture

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Q{{ page.item.number }} of {{ page.count }} — examkb{% endblock %}
+
+{% block content %}
+{# The form posts to a 204. `hx-swap="none"` is the whole of integration fix 3:
+   nothing comes back, so nothing can replace the inputs being clicked. The
+   position is a hidden field, so a save in flight during a navigation still
+   lands against the question it was made on. #}
+<div class="runner"
+     id="runner"
+     data-attempt="{{ page.attempt_id }}"
+     data-position="{{ page.item.position }}"
+     data-remaining="{{ page.remaining_seconds if page.remaining_seconds is not none else '' }}">
+
+  <header class="runner-bar">
+    <span class="progress"><b id="answered">{{ page.answered_count }}</b> of {{ page.count }} answered</span>
+    <span class="clock" id="clock">{{ page.remaining_label }}</span>
+    <span class="save" id="save-state" data-state="idle"></span>
+  </header>
+
+  <ol class="qmap">
+    {% for entry in page.map %}
+    <li>
+      <a href="/exam/{{ page.attempt_id }}/q/{{ entry.position }}"
+         class="{{ entry.state }}{% if entry.flagged %} flagged{% endif %}"
+         data-position="{{ entry.position }}"
+         aria-current="{{ 'true' if entry.current else 'false' }}">{{ entry.number }}</a>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <article class="question">
+    <p class="qmeta">
+      Question {{ page.item.number }} of {{ page.count }}
+      {% if page.item.domain_label %}· {{ page.item.domain_label }}{% endif %}
+      {% if page.item.multi %}· <b>select {{ page.item.select_count }}</b>{% endif %}
+      {% if page.item.disputed %}· <span class="disputed">this question has an open dispute</span>{% endif %}
+    </p>
+
+    <div class="prompt">{{ page.item.prompt_md | md }}</div>
+
+    <form id="answer-form"
+          hx-post="/exam/{{ page.attempt_id }}/answer"
+          hx-trigger="change"
+          hx-swap="none">
+      <input type="hidden" name="position" value="{{ page.item.position }}">
+      <input type="hidden" name="time_ms" id="time-ms" value="0">
+      {% for option in page.item.options %}
+      <label class="choice option">
+        <input type="{{ 'checkbox' if page.item.multi else 'radio' }}"
+               name="label" value="{{ option.label }}"
+               {% if option.selected %}checked{% endif %}>
+        <span class="letter">{{ option.label }}</span>
+        <span class="text">{{ option.text_md | md }}</span>
+      </label>
+      {% endfor %}
+    </form>
+
+    <div class="runner-actions">
+      <form method="post" action="/exam/{{ page.attempt_id }}/flag"
+            hx-post="/exam/{{ page.attempt_id }}/flag" hx-swap="none" class="inline">
+        <input type="hidden" name="position" value="{{ page.item.position }}">
+        <button type="submit" id="flag" class="quiet{% if page.item.flagged %} on{% endif %}">
+          {{ "Flagged" if page.item.flagged else "Flag for review" }}
+        </button>
+      </form>
+
+      <nav class="steps">
+        {% if page.previous is not none %}
+        <a class="button quiet" href="/exam/{{ page.attempt_id }}/q/{{ page.previous }}">← Previous</a>
+        {% else %}<span class="button quiet off">← Previous</span>{% endif %}
+        {% if page.next is not none %}
+        <a class="button" href="/exam/{{ page.attempt_id }}/q/{{ page.next }}">Next →</a>
+        {% else %}<span class="button off">Next →</span>{% endif %}
+      </nav>
+    </div>
+  </article>
+
+  <form method="post" action="/exam/{{ page.attempt_id }}/submit" class="submit"
+        onsubmit="return examkbConfirmSubmit(this)">
+    <button type="submit">Submit exam</button>
+    <span class="hint"><b id="unanswered">{{ page.unanswered }}</b> unanswered</span>
+  </form>
+</div>
+
+<script src="/static/runner.js" defer></script>
+{% endblock %}

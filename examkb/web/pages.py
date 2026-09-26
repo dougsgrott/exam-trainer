@@ -22,7 +22,7 @@ from fastapi.templating import Jinja2Templates
 
 from examkb import __version__, status as status_module
 from examkb.services import marks as marks_service
-from examkb.web import markdown, nav
+from examkb.web import charts, markdown, nav
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -50,6 +50,12 @@ environment.filters["plain"] = markdown.plain
 # The three values a person can mark with, so `_marks.html` does not have to be
 # handed them by every include site.
 environment.globals["MARK_VALUES"] = marks_service.VALUES
+
+# `tools/charts.py`, server-side. The plan's stated reason for this stack, and
+# the only way a template is allowed to emit SVG.
+environment.globals["chart_hbar"] = charts.hbar
+environment.globals["chart_table"] = charts.table
+environment.globals["chart_tile"] = charts.stat_tile
 
 
 def database_url(request: Request) -> str | None:
