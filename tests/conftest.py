@@ -152,6 +152,7 @@ def reset_app_caches() -> None:
     db.get_engine.cache_clear()
     db.get_sessionmaker.cache_clear()
     db.engine_for.cache_clear()
+    db.forget_projection_ready()
     settings.get_settings.cache_clear()
     status.forget_corpus_fingerprint()
 

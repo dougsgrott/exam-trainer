@@ -60,9 +60,11 @@ Q3 = "mini-b/exam-01/q001"
 @pytest.fixture(autouse=True)
 def clean_caches():
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     status_module.forget_corpus_fingerprint()
     yield
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     status_module.forget_corpus_fingerprint()
 
 
@@ -348,6 +350,9 @@ def test_the_list_still_issues_a_bounded_number_of_queries(marked: str) -> None:
     from sqlalchemy import event
 
     engine = db_module.engine_for(marked)
+    # Warmed for the same reason as in test_browse.py: 051's schema check is a
+    # once-per-process cost, and this test is about the per-page one.
+    db_module.projection_ready(marked)
     seen: list[str] = []
 
     @event.listens_for(engine, "before_cursor_execute")

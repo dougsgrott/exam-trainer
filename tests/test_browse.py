@@ -37,9 +37,11 @@ CORPUS = 549
 @pytest.fixture(autouse=True)
 def clean_caches():
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     status_module.forget_corpus_fingerprint()
     yield
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     status_module.forget_corpus_fingerprint()
 
 
@@ -195,6 +197,10 @@ def test_the_list_page_issues_the_same_queries_whatever_the_page_size(
     shipping everything at once.
     """
     engine = db_module.engine_for(url)
+    # The schema check (051) happens once per process, not once per page, so it is
+    # warmed before the listener goes on -- this counts what rendering costs, not
+    # what starting up costs.
+    db_module.projection_ready(url)
     seen = statements(engine)
 
     page(url, per_page=5)
@@ -208,6 +214,10 @@ def test_the_list_page_issues_the_same_queries_whatever_the_page_size(
 
 def test_the_detail_page_issues_three_queries(url: str) -> None:
     engine = db_module.engine_for(url)
+    # The schema check (051) happens once per process, not once per page, so it is
+    # warmed before the listener goes on -- this counts what rendering costs, not
+    # what starting up costs.
+    db_module.projection_ready(url)
     seen = statements(engine)
 
     detail = browse_service.question_page("ccao-f/exam-01/q001", url=url)

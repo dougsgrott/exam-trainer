@@ -157,6 +157,9 @@ def start_page(*, url: str | None = None) -> StartPage:
     """What `/exam` offers: the certifications with questions, and any open sitting."""
     import sqlalchemy as sa
 
+    if not db.projection_ready(url):
+        return StartPage(certifications=())
+
     with db.session_for(url) as session:
         rows = session.execute(
             sa.text(

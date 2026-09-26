@@ -61,8 +61,10 @@ LABELS = ("A", "B", "C", "D")
 @pytest.fixture(autouse=True)
 def clean_caches():
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     yield
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
 
 
 def snapshot(correct: tuple[str, ...], select_count: int, labels=LABELS) -> dict:

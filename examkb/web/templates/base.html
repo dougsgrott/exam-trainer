@@ -5,6 +5,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{# Before the stylesheet, and inline, so the stored theme is on <html> by the time
+   any rule is applied. Loaded from a file it would arrive after first paint and the
+   page would flash the wrong colours on every navigation.
+
+   `kb-theme` is `tools/build_report.py`'s own key, on purpose: one preference
+   covers the app and the static reports, so setting one sets both. #}
+<script>
+(function () {
+  var stored = null;
+  try { stored = localStorage.getItem('kb-theme'); } catch (e) {}
+  if (stored === 'dark' || stored === 'light') {
+    document.documentElement.setAttribute('data-theme', stored);
+  }
+  function effective() {
+    var set = document.documentElement.getAttribute('data-theme');
+    if (set) return set;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function paint() {
+    var button = document.getElementById('theme-toggle');
+    if (!button) return;
+    var next = effective() === 'dark' ? 'light' : 'dark';
+    button.textContent = next === 'dark' ? '\u263e' : '\u2600';
+    button.setAttribute('aria-label', 'Switch to the ' + next + ' theme');
+    button.setAttribute('title', 'Switch to the ' + next + ' theme');
+  }
+  window.examkbToggleTheme = function () {
+    var next = effective() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('kb-theme', next); } catch (e) {}
+    paint();
+  };
+  document.addEventListener('DOMContentLoaded', paint);
+})();
+</script>
 <title>{% block title %}examkb{% endblock %}</title>
 {# Every asset is local. No CDN, no font fetch, no preconnect: this app works with
    the network switched off, and tests/test_web_assets.py fails if that stops
@@ -18,6 +53,8 @@
 <header class="masthead">
   <div class="wrap">
     <a class="brand" href="/">examkb</a>
+    <button type="button" id="theme-toggle" class="theme"
+            onclick="examkbToggleTheme()" aria-label="Switch theme">&#9788;</button>
     <nav>
       {% for item in nav %}
         {% if item.enabled %}

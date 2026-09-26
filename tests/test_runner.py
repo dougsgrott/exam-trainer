@@ -42,9 +42,11 @@ TRIGGER = "examkb:saved"
 @pytest.fixture(autouse=True)
 def clean_caches():
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     status_module.forget_corpus_fingerprint()
     yield
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     status_module.forget_corpus_fingerprint()
 
 

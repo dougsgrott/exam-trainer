@@ -30,9 +30,11 @@ def clean_status_caches():
     """The corpus fingerprint and the engine are cached by design; not across tests."""
     status_module.forget_corpus_fingerprint()
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     yield
     status_module.forget_corpus_fingerprint()
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
 
 
 def provider_for(url: str, kb: Path):

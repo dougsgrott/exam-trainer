@@ -210,6 +210,8 @@ def page(
     attempt_id: int, *, url: str | None = None, now: datetime | None = None
 ) -> ResultsPage | None:
     """Grade if needed, then assemble. Returns None when there is no such attempt."""
+    if not db.projection_ready(url):
+        return None
     with db.session_for(url) as session:
         attempt = session.get(journal.Attempt, attempt_id)
         if attempt is None:
@@ -244,6 +246,8 @@ def page(
 
 def recent(limit: int = 20, *, url: str | None = None) -> list[tuple[int, str, datetime, bool]]:
     """`(id, certification, submitted_at, passed)` for the finished sittings."""
+    if not db.projection_ready(url):
+        return []
     with db.session_for(url) as session:
         rows = session.execute(
             sa.select(

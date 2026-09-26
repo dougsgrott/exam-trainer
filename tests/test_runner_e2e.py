@@ -254,3 +254,120 @@ def test_the_bug_this_all_exists_for_is_real(browser, server) -> None:
     )
     assert second_value not in labels
     page.close()
+
+
+# ------------------------------------------------------------------ 050: the theme
+
+
+def theme_of(page) -> str:
+    """What the page is actually painting, not what it was asked to paint."""
+    return page.evaluate(
+        "() => getComputedStyle(document.body).backgroundColor"
+    )
+
+
+def test_the_theme_toggle_switches_and_persists(browser, server) -> None:
+    """050's criterion: it toggles, and the choice survives a reload."""
+    base, _url = server
+    page = browser.new_page(color_scheme="light")
+    page.goto(f"{base}/")
+
+    light = theme_of(page)
+    assert page.get_attribute("html", "data-theme") is None, "nothing stored yet"
+
+    page.click("#theme-toggle")
+    dark = theme_of(page)
+
+    assert page.get_attribute("html", "data-theme") == "dark"
+    assert dark != light
+
+    page.reload()
+    assert page.get_attribute("html", "data-theme") == "dark"
+    assert theme_of(page) == dark
+
+    page.goto(f"{base}/browse")
+    assert page.get_attribute("html", "data-theme") == "dark", "it survives a navigation too"
+    page.close()
+
+
+def test_the_stored_theme_is_on_the_document_before_the_first_paint(browser, server) -> None:
+    """The criterion nobody sees when it works.
+
+    Read at `DOMContentLoaded`, which is before any stylesheet-driven paint could
+    have been corrected. A script loaded from a file would not have run yet.
+    """
+    base, _url = server
+    page = browser.new_page(color_scheme="light")
+    page.goto(f"{base}/")
+    page.click("#theme-toggle")
+
+    second = browser.new_page(color_scheme="light")
+    second.add_init_script(
+        "document.addEventListener('DOMContentLoaded',"
+        " () => { window.__early = document.documentElement.getAttribute('data-theme'); });"
+    )
+    second.goto(f"{base}/")
+    second.evaluate("() => localStorage.setItem('kb-theme', 'dark')")
+    second.reload()
+
+    assert second.evaluate("() => window.__early") == "dark"
+    page.close()
+    second.close()
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_with_nothing_stored_it_follows_the_operating_system(browser, server, scheme) -> None:
+    """The criterion, both ways -- which is only testable in a real browser."""
+    base, _url = server
+    page = browser.new_page(color_scheme=scheme)
+    page.goto(f"{base}/")
+
+    assert page.get_attribute("html", "data-theme") is None
+    background = theme_of(page)
+    page.close()
+
+    other = browser.new_page(color_scheme="dark" if scheme == "light" else "light")
+    other.goto(f"{base}/")
+    assert theme_of(other) != background, "the OS preference changed nothing"
+    other.close()
+
+
+def test_a_forced_theme_beats_the_operating_system(browser, server) -> None:
+    """A person in a dark OS who wants light must get light."""
+    base, _url = server
+    page = browser.new_page(color_scheme="dark")
+    page.goto(f"{base}/")
+    dark_by_os = theme_of(page)
+
+    page.click("#theme-toggle")
+
+    assert page.get_attribute("html", "data-theme") == "light"
+    assert theme_of(page) != dark_by_os
+    page.close()
+
+
+def test_the_results_chart_follows_the_theme(browser, server) -> None:
+    """The SVG is not re-rendered; its colours are tokens, so it just follows."""
+    base, url = server
+    attempt_id = runner_service.begin(certification_id="ccao-f", count=4, seed=51, url=url)
+    with Session(db_module.engine_for(url)) as session:
+        from examkb.services.attempts import answer, submit
+
+        for position in range(4):
+            answer(session, attempt_id, position, ["A"])
+        submit(session, attempt_id)
+        session.commit()
+
+    page = browser.new_page(color_scheme="light")
+    page.goto(f"{base}/results/{attempt_id}")
+    light = page.evaluate(
+        "() => getComputedStyle(document.querySelector('svg.chart text')).fill"
+    )
+
+    page.click("#theme-toggle")
+    dark = page.evaluate(
+        "() => getComputedStyle(document.querySelector('svg.chart text')).fill"
+    )
+
+    assert light != dark, "the chart did not follow the toggle"
+    page.close()

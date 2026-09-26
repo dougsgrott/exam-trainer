@@ -126,6 +126,55 @@ def get_sessionmaker() -> sessionmaker[Session]:
     return sessionmaker(bind=get_engine(), expire_on_commit=False, future=True)
 
 
+# Once a database has a schema it does not lose one, so "yes" is remembered and
+# "no" is not: a server started before `examkb db upgrade` begins working the
+# moment the migration lands, without a restart, and every page after the first
+# costs nothing. A schema that *does* vanish is the fault case -- it raises, which
+# is what `test_a_dropped_table_after_the_schema_exists_is_still_an_error` wants.
+_READY: set[str] = set()
+
+
+def forget_projection_ready() -> None:
+    """Drop the readiness cache. For tests, and for anything that just migrated."""
+    _READY.clear()
+
+
+def projection_ready(url: str | None = None) -> bool:
+    """Can a page query the projection, or is this a database before its first use?
+
+    Three states come before "yes": the file does not exist, it exists with no
+    schema, and it has a schema but nothing has been ingested. Only the first two
+    are this function's business -- an empty projection queries perfectly well and
+    renders an empty page.
+
+    It exists so the services ask **once**, rather than each growing its own
+    `except OperationalError`. That distinction matters: a missing table before the
+    first migration is a state, and a missing table afterwards is a fault, and a
+    blanket try/except in every service would quietly turn the second into the
+    first.
+    """
+    url = url or get_settings().database_url
+    if url in _READY:
+        return True
+
+    path = database_path(url)
+    if path is not None and not path.exists():
+        return False
+    try:
+        with engine_for(url).connect() as connection:
+            found = connection.exec_driver_sql(
+                "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'question'"
+            ).scalar()
+    except sa.exc.SQLAlchemyError:
+        # A file that cannot be opened at all is not a first run; `status.py`
+        # reports it and the banner says so.
+        return False
+
+    if found:
+        _READY.add(url)
+    return bool(found)
+
+
 def session_for(url: str | None = None) -> Session:
     """A session on `url`, or on the configured database when `url` is None.
 

@@ -21,6 +21,7 @@ from math import ceil
 from examkb import db, queries
 from examkb.queries import QuestionDetail
 from examkb.services import search
+from examkb.services import search
 from examkb.services.search import Facet, SearchFilters, SearchResults
 
 DEFAULT_PER_PAGE = 25
@@ -119,6 +120,18 @@ def browse_page(
     per_page = max(1, min(int(per_page or DEFAULT_PER_PAGE), MAX_PER_PAGE))
     page = max(1, int(page or 1))
 
+    if not db.projection_ready(url):
+        # Before the first `db upgrade` there is nothing to query. The banner (008)
+        # already says which command is missing; this just declines to shout.
+        return BrowsePage(
+            results=SearchResults(query=search.parse(q), total=0),
+            facets=[],
+            q=q,
+            page=1,
+            per_page=per_page,
+            active=active,
+        )
+
     with db.session_for(url) as session:
         results = search.search_questions(
             session, q, filters=filters, limit=per_page, offset=(page - 1) * per_page
@@ -139,5 +152,7 @@ def browse_page(
 
 def question_page(question_id: str, *, url: str | None = None) -> QuestionDetail | None:
     """One question, or None. The route turns None into a 404."""
+    if not db.projection_ready(url):
+        return None
     with db.session_for(url) as session:
         return queries.question_detail(session, question_id)
