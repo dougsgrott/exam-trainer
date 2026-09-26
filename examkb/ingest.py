@@ -50,6 +50,7 @@ from examkb.compat import (
 )
 from examkb.models import corpus, metadata
 from examkb.models.base import utcnow
+from examkb.services import search
 
 # The complete write set, in dependency order: parents before children. Deletes
 # walk it backwards. Nothing outside this tuple is touched by an ingest, and a
@@ -113,6 +114,10 @@ class IngestResult:
     shards: int
     elapsed_ms: int
     changes: dict[str, TableChange] = field(default_factory=dict)
+    indexed: int = 0
+    """Questions written to the FTS5 index (009). Zero when nothing needed it."""
+
+    reindexed_all: bool = False
 
     @property
     def changed(self) -> bool:
@@ -124,13 +129,16 @@ class IngestResult:
             f"{'' if self.shards == 1 else 's'}"
             f" -- {self.mode}, fingerprint {self.fingerprint[:12]}, {self.elapsed_ms} ms"
         )
-        if not self.changed:
+        if not self.changed and not self.indexed:
             return f"{head}\n  projection already matches kb/; nothing written"
         lines = [
             f"  {name:<20} {change}"
             for name, change in self.changes.items()
             if change.touched
         ]
+        if self.indexed:
+            what = "rebuilt" if self.reindexed_all else "updated"
+            lines.append(f"  {'search index':<20} {what}, {self.indexed} questions")
         return "\n".join([head, *lines])
 
 
@@ -616,6 +624,8 @@ def ingest(
         apply_upserts(session, plan, run_id)
     changes = {plan.name: plan.change() for plan in plans}
 
+    indexed, rebuilt_index = update_search_index(session, plans, rebuild=rebuild)
+
     return IngestResult(
         run_id=run_id,
         fingerprint=run_id,
@@ -624,7 +634,60 @@ def ingest(
         shards=len(shards),
         elapsed_ms=int((time.monotonic() - started) * 1000),
         changes=changes,
+        indexed=indexed,
+        reindexed_all=rebuilt_index,
     )
+
+
+def affected_questions(plans: list[TablePlan]) -> set[str]:
+    """Every question whose indexable text could have moved, from the plans.
+
+    Both tables count: a question whose own row is untouched but one of whose
+    options changed its text has a different document, and an index that only
+    watched `question` would keep serving the old one.
+    """
+    touched: set[str] = set()
+    for plan in plans:
+        if plan.name == "question":
+            touched.update(row["id"] for row in plan.to_insert)
+            touched.update(row["id"] for row in plan.to_update)
+            touched.update(key[0] for key in plan.to_delete)
+        elif plan.name == "question_option":
+            touched.update(row["question_id"] for row in plan.to_insert)
+            touched.update(row["question_id"] for row in plan.to_update)
+            # The option key is `<question id>#<label>`; no question id contains a
+            # `#`, which is what makes this split safe rather than clever.
+            touched.update(key[0].rsplit("#", 1)[0] for key in plan.to_delete)
+    return touched
+
+
+def update_search_index(
+    session: Session, plans: list[TablePlan], *, rebuild: bool
+) -> tuple[int, bool]:
+    """Bring the FTS5 index (009) in line, in this same transaction.
+
+    Inside the transaction on purpose: the index is part of the projection, and a
+    crash between writing the rows and indexing them would leave a database that
+    answers `SELECT` correctly and `MATCH` wrongly -- the worst of the two, because
+    nothing looks broken.
+
+    The consistency check afterwards is the self-heal: a database migrated to 0002
+    but never re-ingested, or one where something went wrong, gets a full rebuild
+    rather than a search that silently returns less than it should.
+    """
+    if not search.index_exists(session):
+        raise IngestError(
+            f"{search.FTS_TABLE} is missing -- this database is behind its migrations; "
+            "run `examkb db upgrade`"
+        )
+
+    if rebuild:
+        return search.rebuild(session), True
+
+    indexed = search.reindex(session, affected_questions(plans))
+    if not search.is_consistent(session):
+        return search.rebuild(session), True
+    return indexed, False
 
 
 # ---------------------------------------------------------------------------- verify

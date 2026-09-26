@@ -2,7 +2,7 @@
 
 Subcommands register themselves with `@subcommand(...)`, so adding one is a new
 module plus an import in `_load_subcommands()` -- never an edit to the dispatch
-logic below. This issue (001) ships the skeleton and four stubs; each stub names
+logic below. This issue (001) shipped the skeleton and four stubs; each remaining stub names
 the issue that replaces it with a real implementation.
 """
 
@@ -74,8 +74,9 @@ def registered() -> list[Command]:
 #
 # Until its owning issue lands, a subcommand is `lenient`: it accepts arguments it
 # does not declare and reports that it is not implemented, rather than failing on an
-# argument its issue will introduce. `db` left this section in 005 and `ingest` in
-# 006; both live in `examkb/commands/`, which is the path the two below follow.
+# argument its issue will introduce. `db` left this section in 005, `ingest` in 006
+# and `serve` in 008; each lives in `examkb/commands/`, which is the path the one
+# below follows.
 
 
 def _not_implemented(name: str, issue: str) -> Runner:
@@ -84,11 +85,6 @@ def _not_implemented(name: str, issue: str) -> Runner:
         return 1
 
     return run
-
-
-@subcommand("serve", "Run the web app on 127.0.0.1.", lenient=True)
-def _serve(args: argparse.Namespace) -> int:
-    return _not_implemented("serve", "008-web-skeleton-and-serve.md")(args)
 
 
 @subcommand("doctor", "Check that this box is set up correctly.", lenient=True)
@@ -102,14 +98,20 @@ def _doctor(args: argparse.Namespace) -> int:
 def _load_subcommands() -> None:
     """Import the modules that register subcommands.
 
-    The two above are declared in this module because they are stubs. As each
+    The one above is declared in this module because it is a stub. As each
     owning issue lands it moves its subcommand into its own module under
     `examkb/commands/`, and that module gets imported here.
 
     The import is inside the function, not at module scope: a subcommand module
     imports `subcommand` from this one, and doing it at the top would be a cycle.
     """
-    from examkb.commands import backup, db, ingest  # noqa: F401  -- register them
+    from examkb.commands import (  # noqa: F401  -- register them
+        backup,
+        db,
+        ingest,
+        marks,
+        serve,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:

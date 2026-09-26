@@ -26,6 +26,7 @@ from conftest import REPO_ROOT
 from sqlalchemy.orm import Session
 
 from examkb import backup as backup_module
+from examkb import migrations
 from examkb.backup import BackupError, list_snapshots, prune, restore, take_backup, verify_database
 from examkb.models import journal
 
@@ -67,11 +68,22 @@ def count_marks(database: Path) -> int:
 
 
 def fake_snapshot(destination: Path, template: Path, stamp: str, revision: str = "0001") -> Path:
+    """The revision here is arbitrary -- these tests are about names and ages."""
     """A real, valid snapshot file with a chosen timestamp in its name."""
     destination.mkdir(parents=True, exist_ok=True)
     path = destination / f"examkb-{stamp}-r{revision}.db"
     shutil.copyfile(template, path)
     return path
+
+
+def table_count(database: Path) -> int:
+    connection = sqlite3.connect(database)
+    try:
+        return connection.execute(
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table'"
+        ).fetchone()[0]
+    finally:
+        connection.close()
 
 
 def cli(*arguments: str, database: Path, backups: Path) -> subprocess.CompletedProcess:
@@ -111,7 +123,7 @@ def test_the_snapshot_is_named_for_when_it_was_taken_and_what_it_was_at(
 
     snapshot = result.snapshot
     assert snapshot is not None
-    assert snapshot.revision == "0001"
+    assert snapshot.revision == migrations.head_revision()
     assert snapshot.label == "pre-upgrade"
     assert snapshot.name.startswith("examkb-")
     assert (datetime.now(timezone.utc) - snapshot.taken_at) < timedelta(minutes=5)
@@ -326,6 +338,7 @@ def test_a_failed_gate_stops_the_migration_before_it_runs(tmp_path: Path) -> Non
     database = tmp_path / "examkb.db"
     backups = tmp_path / "backups"
     assert cli("db", "upgrade", "--no-backup", database=database, backups=backups).returncode == 0
+    before = table_count(database)
 
     locked = tmp_path / "locked"
     locked.mkdir()
@@ -341,14 +354,10 @@ def test_a_failed_gate_stops_the_migration_before_it_runs(tmp_path: Path) -> Non
     assert result.returncode == 1
     assert "refusing to migrate" in result.stderr
     current = cli("db", "current", database=database, backups=backups)
-    assert "0001" in current.stdout
-    connection = sqlite3.connect(database)
-    try:
-        assert connection.execute(
-            "SELECT count(*) FROM sqlite_master WHERE type = 'table'"
-        ).fetchone()[0] == 37
-    finally:
-        connection.close()
+    assert migrations.head_revision() in current.stdout
+    # Unchanged, compared against itself rather than against a number that has to
+    # be edited every time a migration adds a table (009 added six).
+    assert table_count(database) == before
 
 
 def test_skipping_the_gate_is_possible_but_never_silent(tmp_path: Path) -> None:
@@ -374,7 +383,7 @@ def test_the_backup_command_lists_what_it_has(tmp_path: Path) -> None:
     assert "verified in" in taken.stdout
     assert listed.returncode == 0
     assert "1 snapshot(s)" in listed.stdout
-    assert "revision 0001" in listed.stdout
+    assert f"revision {migrations.head_revision()}" in listed.stdout
 
 
 # ------------------------------------------------------------ confirmation and defaults

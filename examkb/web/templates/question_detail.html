@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ question.id }} — examkb{% endblock %}
+
+{% block content %}
+<p class="crumbs">
+  <a href="/browse">Browse</a> /
+  <a href="{{ '/browse?cert=' ~ question.certification_id }}">{{ question.certification_id }}</a> /
+  <a href="{{ '/browse?exam=' ~ question.exam_id }}">{{ question.exam_title or question.exam_id }}</a>
+</p>
+
+<h1>{{ question.id }}</h1>
+
+<p class="mark-row">
+  {% with question_id = question.id, mark = question.mark, mark_values = MARK_VALUES %}
+  {% include "_marks.html" %}
+  {% endwith %}
+</p>
+
+<dl class="facts">
+  <dt>domain</dt>
+  <dd><a href="{{ '/browse?domain=' ~ question.domain_label|urlencode }}">{{ question.domain_label }}</a></dd>
+  <dt>type</dt>
+  <dd>{% if question.multi %}multi select — choose {{ question.select_count }}{% else %}single select{% endif %}</dd>
+  <dt>mode</dt><dd>{{ question.mode }}</dd>
+  <dt>origin</dt><dd>{{ question.origin }}</dd>
+</dl>
+
+<section class="prompt">{{ question.prompt_md | md }}</section>
+
+<h2>Options</h2>
+<ol class="options">
+  {% for option in question.options %}
+  <li class="option{% if option.is_correct %} correct{% endif %}">
+    <p class="head">
+      <span class="letter">{{ option.label }}</span>
+      {% if option.is_correct %}<span class="badge">correct</span>{% endif %}
+    </p>
+    <div class="text">{{ option.text_md | md }}</div>
+    {% if option.explanation_md %}
+    <div class="why">{{ option.explanation_md | md }}</div>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ol>
+
+{% if question.overall_explanation_md %}
+<h2>Explanation</h2>
+<section class="overall">{{ question.overall_explanation_md | md }}</section>
+{% endif %}
+
+{% if question.references %}
+<h2>References</h2>
+<ul class="refs">
+  {% for reference in question.references %}
+  <li>
+    <a href="{{ reference.raw_url }}" target="_blank" rel="noopener">{{ reference.display_url }}</a>
+    <span class="n">cited by {{ reference.question_count }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

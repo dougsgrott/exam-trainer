@@ -34,6 +34,8 @@ __all__ = [
     "read_shard",
     "read_shard_index",
     "shards_path",
+    "markdown_violations",
+    "mask_code_spans",
     "slugify",
     "strip_markdown",
 ]
@@ -93,6 +95,68 @@ def strip_markdown(text: str) -> str:
     text = re.sub(r"\\(.)", r"\1", text)  # backslash escapes
     text = re.sub(r"\x00(\d+)\x00", lambda m: code[int(m.group(1))], text)
     return norm(text)
+
+
+# Everything the subset does *not* allow. Each pattern is checked against the text
+# with inline code spans blanked out first, which is the whole reason `html` is
+# safe to look for: fourteen explanations in the corpus discuss XML-style tags and
+# write them as `<instructions>` inside a code span, and a naive raw-HTML check
+# rejects every one of them.
+#
+# The set scores **0 hits across all 5490 corpus fields**. 032 owns the version
+# that reports spans and lints option-letter references; this is the primitive both
+# it and the renderer stand on.
+# A backtick *run* must be closed by a run of the same length (CommonMark's rule).
+# Written this way rather than as `` `[^`]*` `` so that an opening code fence -- three
+# backticks with nothing closing them -- is not silently masked into a pair of empty
+# spans, which is how a fence slips past the check meant to catch it.
+_CODE_SPAN = re.compile(r"(`+)(?:(?!\1).)+?\1", re.S)
+
+MARKDOWN_VIOLATIONS: dict[str, "re.Pattern[str]"] = {
+    "heading": re.compile(r"^[ \t]{0,3}#{1,6}[ \t]", re.M),
+    "setext heading": re.compile(r"^[ \t]{0,3}(?:=+|-{2,})[ \t]*$", re.M),
+    "bullet list": re.compile(r"^[ \t]{0,3}[-*+][ \t]+", re.M),
+    "ordered list": re.compile(r"^[ \t]{0,3}\d+[.)][ \t]+", re.M),
+    "code fence": re.compile(r"^[ \t]{0,3}(?:```|~~~)", re.M),
+    "blockquote": re.compile(r"^[ \t]{0,3}>[ \t]?", re.M),
+    "table": re.compile(r"^[ \t]{0,3}\|.*\|[ \t]*$", re.M),
+    "image": re.compile(r"!\[[^\]]*\]\("),
+    "raw html": re.compile(r"</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>"),
+}
+
+
+# Checked against the text as written rather than against the masked copy.
+_CHECKED_RAW = frozenset({"code fence"})
+
+
+def mask_code_spans(text: str) -> str:
+    """Blank the contents of inline code spans, keeping every offset intact.
+
+    Offsets are preserved so a match position in the masked text is a match
+    position in the original -- which is what lets 032 report the offending span
+    without re-scanning.
+    """
+    return _CODE_SPAN.sub(lambda m: " " * len(m.group(0)), text)
+
+
+def markdown_violations(text: str) -> list[tuple[str, int]]:
+    """Every construct outside the measured subset, as `(what, offset)`.
+
+    Empty means the text is bold / italic / inline code / links and nothing else,
+    which is what the corpus is and what the renderer below assumes.
+    """
+    if not text:
+        return []
+    masked = mask_code_spans(text)
+    found = []
+    for name, pattern in MARKDOWN_VIOLATIONS.items():
+        # A fence is looked for in the raw text. Three backticks closed by three
+        # backticks *is* a well-formed code span as far as the masker is concerned,
+        # so masking first would hide the very construct this check is named after.
+        match = pattern.search(text if name in _CHECKED_RAW else masked)
+        if match:
+            found.append((name, match.start()))
+    return sorted(found, key=lambda item: (item[1], item[0]))
 
 
 def md_to_html(text: str) -> str:

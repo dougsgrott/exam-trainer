@@ -1,0 +1,59 @@
+{# The one layout. Every page extends this, which is what makes the stale banner
+   something a route cannot forget to render -- see examkb/web/pages.py. #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}examkb{% endblock %}</title>
+{# Every asset is local. No CDN, no font fetch, no preconnect: this app works with
+   the network switched off, and tests/test_web_assets.py fails if that stops
+   being true. The favicon is inline for the same reason. #}
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>&#128218;</text></svg>">
+<script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <a class="brand" href="/">examkb</a>
+    <nav>
+      {% for item in nav %}
+        {% if item.enabled %}
+          <a href="{{ item.path }}"{% if item.path == path %} aria-current="page"{% endif %}>{{ item.label }}</a>
+        {% else %}
+          <span class="pending" data-issue="{{ item.issue or '' }}" title="Lands in issue {{ item.issue }}">{{ item.label }}</span>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  {% if not status.ready %}
+  <div class="banner{% if not status.usable %} is-empty{% endif %}" role="status">
+    <strong>{{ status.headline }}</strong>
+    <p>{{ status.detail }}</p>
+    {% if status.fix %}
+    <p>Run <code>{{ status.fix }}</code></p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<main>
+  <div class="wrap">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>examkb {{ version }}</span>
+    <span class="mono">{% if status.short %}corpus {{ status.short }}{% else %}no projection{% endif %}</span>
+  </div>
+</footer>
+
+</body>
+</html>

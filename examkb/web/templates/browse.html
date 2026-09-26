@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Browse — examkb{% endblock %}
+
+{% block content %}
+<h1>Browse</h1>
+
+<form class="search" method="get" action="/browse" role="search">
+  <input type="search" name="q" value="{{ browse.q }}"
+         placeholder="Search prompts, options and explanations" aria-label="Search">
+  {# The active filters ride along, so searching narrows the view instead of resetting it. #}
+  {% for param, value in browse.active.items() %}
+  <input type="hidden" name="{{ param }}" value="{{ value }}">
+  {% endfor %}
+  <button type="submit">Search</button>
+  {% if browse.filtered %}<a class="clear" href="/browse">Clear all</a>{% endif %}
+</form>
+
+<p class="lede">
+  {% if browse.total %}
+  {{ browse.first }}–{{ browse.last }} of <strong>{{ browse.total }}</strong>
+  {{ "question" if browse.total == 1 else "questions" }}
+  {% else %}
+  Nothing matches{% if browse.q %} <code>{{ browse.q }}</code>{% endif %}.
+  {% endif %}
+</p>
+
+<div class="browse">
+  <aside class="facets">
+    {% for facet in browse.facets %}
+    {% if facet %}
+    <section class="facet">
+      <h2>{{ facet.title }}</h2>
+      <ul>
+        {% for value in facet.values %}
+        <li{% if value.selected %} class="on"{% endif %}>
+          {% if value.selected %}
+          <span class="label">{{ value.label }}</span>
+          <a class="drop" href="{{ url_with({facet.param: None}) }}"
+             title="Remove this filter" aria-label="Remove {{ facet.title }} filter">✕</a>
+          {% else %}
+          <a class="label" href="{{ url_with({facet.param: value.value}) }}">{{ value.label }}</a>
+          {% endif %}
+          <span class="n">{{ value.count }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    {% endfor %}
+  </aside>
+
+  <section class="results">
+    {% for hit in browse.results.hits %}
+    <article class="hit">
+      <h3><a href="/questions/{{ hit.question_id }}">{{ hit.question_id }}</a></h3>
+      <p class="excerpt">
+        {% if hit.snippet %}
+        {# Segments, not HTML: the corpus's own `<instructions>` arrives as text. #}
+        {% for part in hit.snippet.parts %}{% if part.matched %}<mark>{{ part.text }}</mark>{% else %}{{ part.text }}{% endif %}{% endfor %}
+        {% else %}
+        {{ hit.prompt_md | plain | truncate(240) }}
+        {% endif %}
+      </p>
+      <p class="meta">
+        {% with question_id = hit.question_id, mark = hit.mark, mark_values = MARK_VALUES %}
+        {% include "_marks.html" %}
+        {% endwith %}
+        <span>{{ hit.certification_id }}</span>
+        <span>{{ hit.exam_title or hit.exam_id }}</span>
+        <span>{{ hit.mode }}</span>
+        <span>{{ hit.domain_label }}</span>
+        <span>{% if hit.type == "multi_select" %}select {{ hit.select_count }}{% else %}single{% endif %}</span>
+      </p>
+    </article>
+    {% endfor %}
+  </section>
+</div>
+
+{% if browse.pages > 1 %}
+<nav class="pager" aria-label="Pagination">
+  {% if browse.has_previous %}
+  <a href="{{ url_with({'page': browse.page - 1}) }}" rel="prev">← Previous</a>
+  {% else %}<span class="off">← Previous</span>{% endif %}
+  <span>Page {{ browse.page }} of {{ browse.pages }}</span>
+  {% if browse.has_next %}
+  <a href="{{ url_with({'page': browse.page + 1}) }}" rel="next">Next →</a>
+  {% else %}<span class="off">Next →</span>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

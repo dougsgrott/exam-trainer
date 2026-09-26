@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from examkb import migrations
 from examkb.db import new_engine
+from examkb.ingest import ingest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -220,6 +221,49 @@ def tmp_db(tmp_path: Path, _migrated_template: Path) -> Iterator[Engine]:
 def tmp_session(tmp_db: Engine) -> Iterator[Session]:
     """A session on `tmp_db`, rolled back and closed afterwards."""
     with Session(tmp_db, expire_on_commit=False) as session:
+        yield session
+
+
+@pytest.fixture(scope="session")
+def _ingested_template(tmp_path_factory: pytest.TempPathFactory, _migrated_template: Path) -> Path:
+    """The real corpus, projected once per session and copied per test.
+
+    Same trick as `_migrated_template` one layer up, and for the same reason: by
+    009 the tests that need all 549 questions *and* the FTS5 index over them were
+    paying ~250 ms each in setup, which had become the largest single line in the
+    default run. Projecting once and copying the file is the same database.
+
+    It reads the committed `kb/` and never `data/`, so it is not a `slow` fixture.
+    """
+    database = tmp_path_factory.mktemp("ingested") / "examkb.db"
+    shutil.copyfile(_migrated_template, database)
+    engine = new_engine(f"sqlite:///{database}")
+    try:
+        with Session(engine) as session:
+            ingest(session, REPO_ROOT / "kb")
+            session.commit()
+        with engine.connect() as connection:
+            connection.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+    finally:
+        engine.dispose()
+    return database
+
+
+@pytest.fixture
+def real_db(tmp_path: Path, _ingested_template: Path) -> Iterator[Engine]:
+    """A database of its own with the real 549-question projection already in it."""
+    database = tmp_path / "examkb.db"
+    shutil.copyfile(_ingested_template, database)
+    engine = new_engine(f"sqlite:///{database}")
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture
+def real_session(real_db: Engine) -> Iterator[Session]:
+    with Session(real_db, expire_on_commit=False) as session:
         yield session
 
 

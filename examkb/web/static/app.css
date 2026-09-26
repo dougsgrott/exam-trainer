@@ -1,0 +1,391 @@
+/* The app's only stylesheet. No framework, no build step, no @import.
+ *
+ * The palette is the reports' palette, token for token, and not by accident:
+ * tools/charts.py emits SVG that references --grid, --text-primary,
+ * --text-secondary, --text-muted and --seq-ink-{low,high} by name, so keeping the
+ * names and values identical is what makes the plan's "reuses charts.py
+ * server-side at zero porting cost" true rather than aspirational.
+ * tests/test_web_assets.py fails if one of those tokens goes missing here.
+ */
+
+:root {
+  color-scheme: light;
+  --surface-0: #f7f7f5;
+  --surface-1: #fcfcfb;
+  --surface-2: #f0efec;
+  --border: #e2e1dc;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #78766f;
+  --grid: #dedcd6;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --good: #1baf7a;
+  --warn: #eb6834;
+  --bad: #e34948;
+  --seq-ink-low: #0b0b0b;
+  --seq-ink-high: #ffffff;
+  --shadow: 0 1px 2px rgba(11, 11, 11, .05), 0 1px 8px rgba(11, 11, 11, .04);
+  --radius: 8px;
+  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #131312;
+    --surface-1: #1a1a19;
+    --surface-2: #232322;
+    --border: #333330;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #94938a;
+    --grid: #38383550;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --good: #199e70;
+    --warn: #d95926;
+    --bad: #e66767;
+    --seq-ink-low: #ffffff;
+    --seq-ink-high: #0b0b0b;
+    --shadow: none;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #131312;
+  --surface-1: #1a1a19;
+  --surface-2: #232322;
+  --border: #333330;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #94938a;
+  --grid: #38383550;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --good: #199e70;
+  --warn: #d95926;
+  --bad: #e66767;
+  --seq-ink-low: #ffffff;
+  --seq-ink-high: #0b0b0b;
+  --shadow: none;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+a { color: var(--series-1); }
+a:hover { text-decoration: none; }
+code, .mono { font-family: var(--mono); font-size: .92em; }
+
+.wrap {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* ------------------------------------------------------------------ header */
+
+.masthead {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
+.masthead .wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  min-height: 3.25rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-weight: 650;
+  letter-spacing: -.01em;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+nav { display: flex; gap: .25rem; flex-wrap: wrap; }
+
+nav a,
+nav span {
+  padding: .35rem .6rem;
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text-secondary);
+}
+
+nav a:hover { background: var(--surface-2); color: var(--text-primary); }
+nav a[aria-current="page"] { background: var(--surface-2); color: var(--text-primary); font-weight: 600; }
+
+/* A page a later issue lands: named, greyed, and not a link that 404s. */
+nav span.pending { color: var(--text-muted); cursor: default; }
+nav span.pending::after {
+  content: attr(data-issue);
+  font-size: .72em;
+  margin-left: .35rem;
+  padding: .05rem .3rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  vertical-align: .15em;
+}
+
+/* ------------------------------------------------------------------ banner */
+
+.banner {
+  margin: 1rem 0 0;
+  padding: .75rem 1rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+
+.banner.is-empty { border-left-color: var(--text-muted); }
+.banner strong { display: block; }
+.banner p { margin: .2rem 0 0; color: var(--text-secondary); }
+.banner code {
+  background: var(--surface-2);
+  padding: .1rem .35rem;
+  border-radius: 4px;
+}
+
+/* -------------------------------------------------------------------- main */
+
+main { padding: 1.5rem 0 3rem; }
+h1 { font-size: 1.55rem; margin: .4rem 0 .2rem; letter-spacing: -.015em; }
+h2 { font-size: 1.05rem; margin: 2rem 0 .6rem; color: var(--text-secondary); font-weight: 600; }
+.lede { color: var(--text-secondary); margin: 0 0 1rem; }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: .75rem;
+}
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .85rem 1rem;
+  box-shadow: var(--shadow);
+}
+
+.card .n {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+
+.card .label { color: var(--text-muted); font-size: .85rem; }
+
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: 0; }
+dl.facts dt { color: var(--text-muted); }
+dl.facts dd { margin: 0; }
+
+.error-code {
+  font-size: 3rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  margin: 1rem 0 0;
+  line-height: 1;
+}
+
+/* ------------------------------------------------------------------ footer */
+
+footer {
+  border-top: 1px solid var(--border);
+  padding: 1rem 0 2rem;
+  color: var(--text-muted);
+  font-size: .85rem;
+}
+
+footer .wrap { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: space-between; }
+
+/* ------------------------------------------------------------------- browse */
+
+form.search {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: .75rem 0 1rem;
+}
+
+form.search input[type="search"] {
+  flex: 1 1 22rem;
+  padding: .5rem .7rem;
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+form.search button {
+  padding: .5rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--seq-ink-high);
+  background: var(--series-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+form.search .clear { color: var(--text-muted); font-size: .9rem; }
+
+.browse {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 52rem) {
+  .browse { grid-template-columns: minmax(0, 1fr); }
+}
+
+.facet { margin-bottom: 1.25rem; }
+.facet h2 { margin: 0 0 .35rem; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; }
+.facet ul { list-style: none; margin: 0; padding: 0; }
+
+.facet li {
+  display: flex;
+  gap: .4rem;
+  align-items: baseline;
+  padding: .12rem 0;
+  font-size: .9rem;
+}
+
+.facet li .label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.facet li a.label { text-decoration: none; color: var(--text-secondary); }
+.facet li a.label:hover { color: var(--text-primary); text-decoration: underline; }
+.facet li.on .label { font-weight: 650; color: var(--text-primary); }
+.facet li .drop { text-decoration: none; color: var(--text-muted); }
+.facet li .n { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: .82rem; }
+
+.hit {
+  padding: .8rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.hit:first-child { padding-top: 0; }
+.hit h3 { margin: 0 0 .25rem; font-size: .88rem; font-weight: 600; }
+.hit h3 a { font-family: var(--mono); text-decoration: none; }
+.hit .excerpt { margin: 0 0 .35rem; color: var(--text-primary); }
+.hit mark { background: var(--seq-1, #cde2fb); color: var(--text-primary); border-radius: 2px; padding: 0 .1em; }
+
+.hit .meta {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+
+.hit .meta span + span::before { content: "·"; margin-right: .6rem; }
+
+.pager {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  justify-content: center;
+  margin: 1.5rem 0 0;
+  color: var(--text-secondary);
+}
+
+.pager .off { color: var(--text-muted); }
+
+/* ------------------------------------------------------------ question detail */
+
+.crumbs { color: var(--text-muted); font-size: .85rem; margin: .4rem 0 0; }
+h1 + dl.facts { margin-top: .6rem; }
+
+.prompt { font-size: 1.05rem; }
+.prompt p:first-child { margin-top: .4rem; }
+
+ol.options { list-style: none; margin: 0; padding: 0; }
+
+.option {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  padding: .7rem .9rem;
+  margin: 0 0 .6rem;
+}
+
+.option.correct { border-left-color: var(--good); }
+.option .head { display: flex; gap: .5rem; align-items: baseline; margin: 0 0 .2rem; }
+.option .letter { font-weight: 650; font-family: var(--mono); }
+
+.option .badge {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--good);
+  border: 1px solid var(--good);
+  border-radius: 4px;
+  padding: 0 .3rem;
+}
+
+.option .text p { margin: 0; }
+.option .why { color: var(--text-secondary); font-size: .92rem; margin-top: .4rem; }
+.option .why p { margin: 0; }
+
+.overall p:first-child { margin-top: 0; }
+
+ul.refs { list-style: none; margin: 0; padding: 0; }
+ul.refs li { padding: .2rem 0; display: flex; gap: .6rem; flex-wrap: wrap; align-items: baseline; }
+ul.refs .n { color: var(--text-muted); font-size: .82rem; }
+
+/* -------------------------------------------------------------------- marks */
+
+.marks { display: inline-flex; gap: .25rem; }
+
+button.mark {
+  font: inherit;
+  font-size: .72rem;
+  line-height: 1.6;
+  padding: 0 .4rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button.mark:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+button.mark.on {
+  color: var(--seq-ink-high);
+  background: var(--series-1);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+/* The three values read differently; colour follows meaning, not order. */
+button.mark.on[title^="Clear"][aria-pressed="true"] { background: var(--series-1); }
+.marks[data-mark="known"] button.mark.on { background: var(--good); }
+.marks[data-mark="flagged"] button.mark.on { background: var(--series-2); }
+
+.hit .meta .marks + span::before { content: none; }
+.mark-row { margin: .3rem 0 0; }
