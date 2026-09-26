@@ -301,12 +301,10 @@ def test_no_journal_table_is_in_the_write_set() -> None:
     assert written <= projection
     assert written.isdisjoint(journal_names)
     # Tables a later issue projects from its own files, and which ingest does not
-    # write yet: blueprints (017), annotations and taxonomy (027).
+    # write yet. 017 took the three blueprint tables off this list and 018 took
+    # `blueprint_domain_map`; what is left is the format profile (044) and
+    # annotations and taxonomy (027).
     assert projection - written == {
-        "blueprint",
-        "blueprint_domain_map",
-        "blueprint_node",
-        "blueprint_source",
         "format_profile",
         "question_annotation",
         "question_taxon",

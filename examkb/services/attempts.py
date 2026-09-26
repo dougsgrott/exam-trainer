@@ -237,6 +237,11 @@ def start(
         item_count=draw.count,
         requested_count=draw.requested,
         sampler_json=draw.sampler_json(),
+        # 019. Recorded on the attempt, not recomputed later: the blueprint can be
+        # re-transcribed and the corpus can grow, and neither may change the mix a
+        # sitting from six months ago is reported as having had.
+        weight_source=draw.weight_source,
+        apportionment_json=draw.apportionment_json(),
         time_limit_seconds=sampler.DEFAULT_TIME_LIMIT_SECONDS,
     )
     session.add(attempt)

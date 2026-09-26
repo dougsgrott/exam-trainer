@@ -9,13 +9,14 @@ KB := kb
 
 PARSE  := $(UV) run tools/parse_udemy.py --check
 SHARDS := $(UV) run tools/build_shards.py
+BLUEPRINTS := $(UV) run tools/parse_blueprint.py
 BUILD  := $(UV) run tools/build_kb.py
 VERIFY := $(UV) run tools/verify_lossless.py
 STATS  := $(UV) run tools/kb_stats.py
 REPORT := $(UV) run tools/build_report.py
 
 .DEFAULT_GOAL := help
-.PHONY: help sync test test-slow test-all pipeline parse shards build verify stats report kb-hash db-upgrade backup ingest serve doctor clean-kb
+.PHONY: help sync test test-slow test-all pipeline parse blueprints shards build verify stats report kb-hash db-upgrade backup ingest serve doctor clean-kb
 
 help:  ## Show this help
 	@grep -hE '^[a-z][a-zA-Z0-9_-]*:.*?## ' $(MAKEFILE_LIST) \
@@ -37,6 +38,7 @@ test-all:  ## Run every test, fast and slow
 
 pipeline:  ## Run the full documented pipeline, in order
 	$(PARSE)
+	$(BLUEPRINTS)
 	$(SHARDS)
 	$(BUILD)
 	$(VERIFY)
@@ -45,6 +47,9 @@ pipeline:  ## Run the full documented pipeline, in order
 
 parse:  ## data/ -> kb/ canonical JSON + JSONL, and validate
 	$(PARSE)
+
+blueprints:  ## data/blueprints/ -> kb/blueprints/ (human-transcribed outlines)
+	$(BLUEPRINTS)
 
 shards:  ## Index the question shards into kb/shards.json (no parser writes it)
 	$(SHARDS)

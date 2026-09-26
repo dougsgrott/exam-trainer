@@ -107,6 +107,7 @@ def _load_subcommands() -> None:
     """
     from examkb.commands import (  # noqa: F401  -- register them
         backup,
+        blueprint,
         db,
         ingest,
         marks,

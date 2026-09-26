@@ -26,6 +26,8 @@ __all__ = [
     "StaleShardIndex",
     "discover_shards",
     "display_path",
+    "blueprint_files",
+    "load_blueprints",
     "load_questions",
     "md_to_html",
     "norm",
@@ -287,6 +289,20 @@ def read_shard_index(kb: Path) -> list[dict] | None:
 
 def read_shard(path: Path) -> list[dict]:
     return [json.loads(line) for line in Path(path).read_text(encoding="utf-8").splitlines()]
+
+
+BLUEPRINTS_DIR = "blueprints"
+
+
+def blueprint_files(kb: Path) -> list[Path]:
+    """Every `kb/blueprints/**/*.json`, sorted. Empty when there are none."""
+    root = Path(kb) / BLUEPRINTS_DIR
+    return sorted(root.rglob("*.json")) if root.is_dir() else []
+
+
+def load_blueprints(kb: Path) -> list[dict]:
+    """The parsed blueprints, in path order, as `parse_blueprint.py` wrote them."""
+    return [json.loads(path.read_text(encoding="utf-8")) for path in blueprint_files(kb)]
 
 
 def load_questions(kb: Path, *, provider: str | None = None) -> list[dict]:
