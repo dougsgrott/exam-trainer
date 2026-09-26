@@ -1,0 +1,12 @@
+# WSL alternate-data-stream files from saved web pages
+*:Zone.Identifier
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+plans/
+kb/
+issues/
+data/

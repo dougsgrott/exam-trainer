@@ -1,0 +1,170 @@
+[
+  {
+    "id": "mini-a/exam-01/q001",
+    "content_hash": "aaaa000000a1",
+    "certification": {
+      "slug": "mini-a",
+      "name": "Mini Certification A",
+      "vendor": "example",
+      "level": "associate"
+    },
+    "exam": {
+      "slug": "exam-01",
+      "title": "Mini A Practice Exam 1",
+      "number": 1,
+      "mode": "realistic",
+      "question_number": 1
+    },
+    "domain": "Prompting and Task Execution",
+    "type": "single_select",
+    "select_count": 1,
+    "prompt_md": "A prompt with **bold**, *italic*, `inline_code` and an escaped \\<thinking\\> tag.",
+    "options": [
+      {
+        "label": "A",
+        "text_md": "The correct option.",
+        "correct": true,
+        "explanation_md": "Correct, because it is the one marked correct."
+      },
+      {
+        "label": "B",
+        "text_md": "A wrong option.",
+        "correct": false,
+        "explanation_md": "Incorrect: see [the docs](https://docs.anthropic.com/en/docs/mini)."
+      },
+      {
+        "label": "C",
+        "text_md": "Another wrong option.",
+        "correct": false,
+        "explanation_md": "Incorrect for a second reason."
+      },
+      {
+        "label": "D",
+        "text_md": "A third wrong option.",
+        "correct": false,
+        "explanation_md": "Incorrect for a third reason."
+      }
+    ],
+    "correct_labels": ["A"],
+    "overall_explanation_md": "One correct answer out of four.",
+    "references": ["https://docs.anthropic.com/en/docs/mini"],
+    "source": {
+      "provider": "udemy",
+      "course_url": "https://example.invalid/course",
+      "file": "data/mini/exam-01.html"
+    }
+  },
+  {
+    "id": "mini-a/exam-01/q002",
+    "content_hash": "aaaa000000a2",
+    "certification": {
+      "slug": "mini-a",
+      "name": "Mini Certification A",
+      "vendor": "example",
+      "level": "associate"
+    },
+    "exam": {
+      "slug": "exam-01",
+      "title": "Mini A Practice Exam 1",
+      "number": 1,
+      "mode": "realistic",
+      "question_number": 2
+    },
+    "domain": "Integration",
+    "type": "multi_select",
+    "select_count": 2,
+    "prompt_md": "Which TWO of the following are true?",
+    "options": [
+      {
+        "label": "A",
+        "text_md": "First correct option.",
+        "correct": true,
+        "explanation_md": "Correct."
+      },
+      {
+        "label": "B",
+        "text_md": "Second correct option.",
+        "correct": true,
+        "explanation_md": "Also correct."
+      },
+      {
+        "label": "C",
+        "text_md": "A wrong option.",
+        "correct": false,
+        "explanation_md": "Incorrect."
+      },
+      {
+        "label": "D",
+        "text_md": "Another wrong option.",
+        "correct": false,
+        "explanation_md": "Also incorrect."
+      }
+    ],
+    "correct_labels": ["A", "B"],
+    "overall_explanation_md": "Two of four are correct.",
+    "references": [
+      "https://docs.anthropic.com/en/docs/mini",
+      "https://platform.claude.com/docs/en/mini"
+    ],
+    "source": {
+      "provider": "udemy",
+      "course_url": "https://example.invalid/course",
+      "file": "data/mini/exam-01.html"
+    }
+  },
+  {
+    "id": "mini-b/exam-01/q001",
+    "content_hash": "bbbb000000b1",
+    "certification": {
+      "slug": "mini-b",
+      "name": "Mini Certification B",
+      "vendor": "example",
+      "level": "professional"
+    },
+    "exam": {
+      "slug": "exam-01",
+      "title": "Mini B Practice Exam 1",
+      "number": 1,
+      "mode": "realistic",
+      "question_number": 1
+    },
+    "domain": "Solution Design & Architecture",
+    "type": "single_select",
+    "select_count": 1,
+    "prompt_md": "A question in a second certification.",
+    "options": [
+      {
+        "label": "A",
+        "text_md": "A wrong option.",
+        "correct": false,
+        "explanation_md": "Incorrect."
+      },
+      {
+        "label": "B",
+        "text_md": "The correct option.",
+        "correct": true,
+        "explanation_md": "Correct."
+      },
+      {
+        "label": "C",
+        "text_md": "Another wrong option.",
+        "correct": false,
+        "explanation_md": "Incorrect."
+      },
+      {
+        "label": "D",
+        "text_md": "A third wrong option.",
+        "correct": false,
+        "explanation_md": "Incorrect."
+      }
+    ],
+    "correct_labels": ["B"],
+    "overall_explanation_md": "The second certification has its own domains.",
+    "references": ["https://support.anthropic.com/en/articles/mini"],
+    "source": {
+      "provider": "udemy",
+      "course_url": "https://example.invalid/course-b",
+      "file": "data/mini/exam-02.html"
+    }
+  }
+]
