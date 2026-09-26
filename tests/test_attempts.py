@@ -47,8 +47,10 @@ Q2 = "mini-a/exam-01/q002"
 @pytest.fixture(autouse=True)
 def clean_caches():
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     yield
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
 
 
 @pytest.fixture

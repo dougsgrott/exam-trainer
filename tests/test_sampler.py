@@ -56,8 +56,10 @@ TOLERANCE = 0.03
 @pytest.fixture(autouse=True)
 def clean_caches():
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     yield
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
 
 
 @pytest.fixture

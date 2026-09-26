@@ -572,3 +572,21 @@ ul.attempts .verdict { margin-left: auto; font-size: .75rem; text-transform: upp
   letter-spacing: .06em; font-weight: 700; }
 ul.attempts .verdict.pass { color: var(--good); }
 ul.attempts .verdict.fail { color: var(--bad); }
+
+/* -------------------------------------------------------------------- theme */
+
+button.theme {
+  order: 99;                 /* last in the masthead, after the nav */
+  margin-left: auto;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+button.theme:hover { color: var(--text-primary); background: var(--surface-2); }

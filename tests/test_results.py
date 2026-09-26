@@ -42,9 +42,11 @@ PERCENT = re.compile(r"\d+%")
 @pytest.fixture(autouse=True)
 def clean_caches():
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     status_module.forget_corpus_fingerprint()
     yield
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
     status_module.forget_corpus_fingerprint()
 
 
@@ -162,6 +164,7 @@ def test_the_snapshot_wins_over_a_rebuilt_corpus(
     ingest(tmp_session, tmp_kb, rebuild=True)
     tmp_session.commit()
     db_module.engine_for.cache_clear()
+    db_module.forget_projection_ready()
 
     after = results_service.page(attempt.id, url=url)
 
